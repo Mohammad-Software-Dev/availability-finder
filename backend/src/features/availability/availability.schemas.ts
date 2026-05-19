@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 function getDuplicateIds(ids: string[]): string[] {
   const seen = new Set<string>();
   const duplicates = new Set<string>();
@@ -17,6 +19,10 @@ function getDuplicateIds(ids: string[]): string[] {
 }
 
 export const availabilityRequestSchema = z.object({
+  date: z
+    .string({ error: "Date is required" })
+    .regex(DATE_PATTERN, "Date must be in YYYY-MM-DD format"),
+
   personIds: z
     .array(z.string().trim().min(1, "Person id cannot be empty"))
     .min(1, "At least one person must be selected")

@@ -31,11 +31,39 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
+type DatesResponse = {
+  dates: string[];
+};
+
+export async function fetchAvailableDates(
+  options: RequestOptions = {},
+): Promise<string[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/people/dates`, {
+      signal: options.signal,
+    });
+
+    const data = (await handleResponse(res)) as DatesResponse;
+
+    return data.dates;
+  } catch (err) {
+    if (typeof err === "object" && err !== null && "message" in err) {
+      throw err as ApiError;
+    }
+
+    throw { message: "Network error. Please try again." } satisfies ApiError;
+  }
+}
+
 export async function fetchPeople(
+  date: string,
   options: RequestOptions = {},
 ): Promise<PersonWithEvents[]> {
   try {
-    const res = await fetch(`${BASE_URL}/api/people`, {
+    const url = new URL(`${BASE_URL}/api/people`);
+    url.searchParams.set("date", date);
+
+    const res = await fetch(url, {
       signal: options.signal,
     });
 

@@ -10,6 +10,7 @@ describe("getAvailability", () => {
   it("returns deterministic slots for Alice + Bob with defaults", () => {
     const result = getAvailability(
       availabilityRequestSchema.parse({
+        date: "2026-05-18",
         personIds: ["alice", "bob"],
         durationMinutes: 30,
       }),
@@ -39,6 +40,7 @@ describe("getAvailability", () => {
   it("preserves requested attendee order in the response", () => {
     const result = getAvailability(
       availabilityRequestSchema.parse({
+        date: "2026-05-18",
         personIds: ["bob", "alice"],
         durationMinutes: 30,
       }),
@@ -50,6 +52,7 @@ describe("getAvailability", () => {
   it("returns exactly one 60-minute slot when everyone is selected", () => {
     const result = getAvailability(
       availabilityRequestSchema.parse({
+        date: "2026-05-18",
         personIds: ["alice", "bob", "charlie", "diana", "edward", "fatima"],
         durationMinutes: 60,
       }),
@@ -63,6 +66,7 @@ describe("getAvailability", () => {
     expect(() =>
       getAvailability(
         availabilityRequestSchema.parse({
+          date: "2026-05-18",
           personIds: ["alice", "ghost-user"],
           durationMinutes: 30,
         }),
@@ -89,6 +93,7 @@ describe("getAvailability", () => {
     try {
       const result = getAvailability(
         availabilityRequestSchema.parse({
+          date: "2026-05-18",
           personIds: ["test-early", "test-late"],
           durationMinutes: 30,
         }),
@@ -111,6 +116,7 @@ describe("getAvailability", () => {
 
   it("uses the schema default for step minutes before calling the service", () => {
     const input = availabilityRequestSchema.parse({
+      date: "2026-05-18",
       personIds: ["alice", "bob"],
       durationMinutes: 30,
     });
@@ -121,6 +127,7 @@ describe("getAvailability", () => {
 
   it("uses an explicit step value from parsed input", () => {
     const input = availabilityRequestSchema.parse({
+      date: "2026-05-18",
       personIds: ["alice", "bob"],
       durationMinutes: 30,
       stepMinutes: 20,
@@ -132,6 +139,7 @@ describe("getAvailability", () => {
   it("rejects duplicate participant ids at the validation boundary", () => {
     expect(() =>
       availabilityRequestSchema.parse({
+        date: "2026-05-18",
         personIds: ["alice", "alice"],
         durationMinutes: 30,
       }),
@@ -141,6 +149,7 @@ describe("getAvailability", () => {
   it("rejects whitespace-only participant ids at the validation boundary", () => {
     expect(() =>
       availabilityRequestSchema.parse({
+        date: "2026-05-18",
         personIds: ["   "],
         durationMinutes: 30,
       }),
@@ -150,6 +159,7 @@ describe("getAvailability", () => {
   it("rejects invalid step minutes at the validation boundary", () => {
     expect(() =>
       availabilityRequestSchema.parse({
+        date: "2026-05-18",
         personIds: ["alice"],
         durationMinutes: 30,
         stepMinutes: 0,
@@ -160,10 +170,53 @@ describe("getAvailability", () => {
   it("rejects invalid duration at the validation boundary", () => {
     expect(() =>
       availabilityRequestSchema.parse({
+        date: "2026-05-18",
         personIds: ["alice"],
         durationMinutes: 0,
       }),
     ).toThrowError();
+  });
+
+  it("uses only events from the requested date", () => {
+    const result = getAvailability(
+      availabilityRequestSchema.parse({
+        date: "2026-05-19",
+        personIds: ["alice", "bob"],
+        durationMinutes: 30,
+      }),
+    );
+
+    expect(result.commonWorkingWindow).toEqual({ start: "10:00", end: "17:00" });
+    expect(result.slots).toEqual([
+      { start: "11:00", end: "11:30" },
+      { start: "11:15", end: "11:45" },
+      { start: "11:30", end: "12:00" },
+      { start: "11:45", end: "12:15" },
+      { start: "12:00", end: "12:30" },
+      { start: "12:15", end: "12:45" },
+      { start: "12:30", end: "13:00" },
+      { start: "14:00", end: "14:30" },
+      { start: "15:30", end: "16:00" },
+      { start: "15:45", end: "16:15" },
+      { start: "16:00", end: "16:30" },
+      { start: "16:15", end: "16:45" },
+      { start: "16:30", end: "17:00" },
+    ]);
+    expect(result.warnings).toEqual([
+      "Alice Johnson: skipped invalid event (missing/invalid time)",
+    ]);
+  });
+
+  it("rejects unsupported planning dates", () => {
+    expect(() =>
+      getAvailability(
+        availabilityRequestSchema.parse({
+          date: "2026-05-30",
+          personIds: ["alice"],
+          durationMinutes: 30,
+        }),
+      ),
+    ).toThrowError(new AppError("Unknown planning date: 2026-05-30", 400));
   });
 });
 
@@ -171,6 +224,7 @@ describe("availability controller", () => {
   it("returns 200 with a valid request payload", () => {
     const req = {
       body: {
+        date: "2026-05-18",
         personIds: ["alice", "bob"],
         durationMinutes: 30,
       },
@@ -206,6 +260,7 @@ describe("availability controller", () => {
   it("passes validation errors to next", () => {
     const req = {
       body: {
+        date: "2026-05-18",
         personIds: [],
         durationMinutes: 0,
       },
@@ -237,6 +292,7 @@ describe("error handler", () => {
     handleGetAvailability(
       {
         body: {
+          date: "2026-05-18",
           personIds: [],
           durationMinutes: 0,
         },
@@ -271,6 +327,7 @@ describe("error handler", () => {
     handleGetAvailability(
       {
         body: {
+          date: "2026-05-18",
           personIds: [],
           durationMinutes: 30,
         },
@@ -305,6 +362,7 @@ describe("error handler", () => {
     handleGetAvailability(
       {
         body: {
+          date: "2026-05-18",
           personIds: ["alice", "ghost-user"],
           durationMinutes: 30,
         },
@@ -336,6 +394,7 @@ describe("error handler", () => {
     handleGetAvailability(
       {
         body: {
+          date: "2026-05-18",
           personIds: ["alice", "alice"],
           durationMinutes: 30,
         },
@@ -370,6 +429,7 @@ describe("error handler", () => {
     handleGetAvailability(
       {
         body: {
+          date: "2026-05-18",
           personIds: ["   "],
           durationMinutes: 30,
         },
@@ -404,6 +464,7 @@ describe("error handler", () => {
     handleGetAvailability(
       {
         body: {
+          date: "2026-05-18",
           personIds: ["alice"],
           durationMinutes: 0,
         },
@@ -438,6 +499,7 @@ describe("error handler", () => {
     handleGetAvailability(
       {
         body: {
+          date: "2026-05-18",
           personIds: ["alice"],
           durationMinutes: 30,
           stepMinutes: 0,

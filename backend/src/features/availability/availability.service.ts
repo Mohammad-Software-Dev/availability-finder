@@ -1,4 +1,9 @@
-import { calendarEvents, people, SeedPerson } from "../../data/seed.js";
+import {
+  availableDates,
+  calendarEvents,
+  people,
+  SeedPerson,
+} from "../../data/seed.js";
 import { AppError } from "../../shared/errors/AppError.js";
 import { Interval } from "../../shared/types/common.js";
 import {
@@ -25,6 +30,7 @@ type NormalizedPersonAvailability = {
 
 function normalizePersonAvailability(
   person: SeedPerson,
+  date: string,
 ): NormalizedPersonAvailability {
   const warnings: string[] = [];
 
@@ -39,7 +45,9 @@ function normalizePersonAvailability(
   const workingHours: Interval = { start, end };
 
   // Get events for this person
-  const events = calendarEvents.filter((event) => event.personId === person.id);
+  const events = calendarEvents.filter(
+    (event) => event.personId === person.id && event.date === date,
+  );
 
   const busyIntervals: Interval[] = [];
 
@@ -82,6 +90,12 @@ function normalizePersonAvailability(
     busyIntervals: mergedBusy,
     warnings,
   };
+}
+
+function assertAvailableDate(date: string) {
+  if (!availableDates.includes(date as (typeof availableDates)[number])) {
+    throw new AppError(`Unknown planning date: ${date}`, 400);
+  }
 }
 
 function getCommonWorkingWindow(
@@ -154,10 +168,11 @@ function resolveSelectedPeople(personIds: string[]): SeedPerson[] {
 
 function normalizePeopleWithWarnings(
   selectedPeople: SeedPerson[],
+  date: string,
 ): { normalizedPeople: NormalizedPersonAvailability[]; warnings: string[] } {
   const warningsSet = new Set<string>();
   const normalizedPeople = selectedPeople.map((person) => {
-    const result = normalizePersonAvailability(person);
+    const result = normalizePersonAvailability(person, date);
 
     for (const warning of result.warnings) {
       warningsSet.add(warning);
@@ -175,11 +190,13 @@ function normalizePeopleWithWarnings(
 export function getAvailability(
   input: AvailabilityRequestInput,
 ): AvailabilityResponse {
-  const { durationMinutes, personIds } = input;
+  const { date, durationMinutes, personIds } = input;
   const { stepMinutes } = input;
+  assertAvailableDate(date);
   const selectedPeople = resolveSelectedPeople(personIds);
   const { normalizedPeople, warnings } = normalizePeopleWithWarnings(
     selectedPeople,
+    date,
   );
 
   const commonWindow = getCommonWorkingWindow(normalizedPeople);

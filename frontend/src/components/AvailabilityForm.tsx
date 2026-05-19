@@ -4,13 +4,19 @@ import { CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatPlanningDate } from "@/lib/date";
 import type { AvailabilityRequest, PersonWithEvents, Status } from "@/types";
 import { FieldHelp } from "./FieldHelp";
 import { ParticipantRow } from "./ParticipantRow";
 
 type Props = {
+  availableDates: string[];
   people: PersonWithEvents[];
+  selectedDate: string;
   status: Status;
+  selectedIds: string[];
+  onSelectedDateChange: (date: string) => void;
+  onSelectedIdsChange: (ids: string[]) => void;
   lastSubmittedRequest: AvailabilityRequest | null;
   onDirtyChange: (isDirty: boolean) => void;
   onSubmit: (payload: AvailabilityRequest) => void;
@@ -44,6 +50,7 @@ function areSameSelectedIds(left: string[], right: string[]): boolean {
 function areInputsDirty(
   lastSubmittedRequest: AvailabilityRequest | null,
   nextValues: {
+    date: string;
     selectedIds: string[];
     duration: string;
     step: string;
@@ -56,6 +63,7 @@ function areInputsDirty(
   const normalizedStep = nextValues.step.trim() === "" ? "" : nextValues.step;
 
   return (
+    lastSubmittedRequest.date !== nextValues.date ||
     !areSameSelectedIds(lastSubmittedRequest.personIds, nextValues.selectedIds) ||
     String(lastSubmittedRequest.durationMinutes) !== nextValues.duration ||
     String(lastSubmittedRequest.stepMinutes ?? 15) !== normalizedStep
@@ -63,33 +71,39 @@ function areInputsDirty(
 }
 
 export function AvailabilityForm({
+  availableDates,
   people,
+  selectedDate,
   status,
+  selectedIds,
+  onSelectedDateChange,
+  onSelectedIdsChange,
   lastSubmittedRequest,
   onDirtyChange,
   onSubmit,
 }: Props) {
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [duration, setDuration] = useState("60");
   const [step, setStep] = useState("15");
 
   function setPersonSelected(id: string, selected: boolean) {
-    setSelectedIds((prev) => {
-      const hasPerson = prev.includes(id);
+    const hasPerson = selectedIds.includes(id);
 
-      if (selected && hasPerson) return prev;
-      if (!selected && !hasPerson) return prev;
+    if (selected && hasPerson) return;
+    if (!selected && !hasPerson) return;
 
-      return selected ? [...prev, id] : prev.filter((p) => p !== id);
-    });
+    onSelectedIdsChange(
+      selected
+        ? [...selectedIds, id]
+        : selectedIds.filter((personId) => personId !== id),
+    );
   }
 
   function selectAllPeople() {
-    setSelectedIds(people.map((person) => person.id));
+    onSelectedIdsChange(people.map((person) => person.id));
   }
 
   function clearAllPeople() {
-    setSelectedIds([]);
+    onSelectedIdsChange([]);
   }
 
   const durationError = getPositiveWholeNumberError(duration, "Duration");
@@ -98,12 +112,20 @@ export function AvailabilityForm({
   useEffect(() => {
     onDirtyChange(
       areInputsDirty(lastSubmittedRequest, {
+        date: selectedDate,
         selectedIds,
         duration,
         step,
       }),
     );
-  }, [duration, lastSubmittedRequest, onDirtyChange, selectedIds, step]);
+  }, [
+    duration,
+    lastSubmittedRequest,
+    onDirtyChange,
+    selectedDate,
+    selectedIds,
+    step,
+  ]);
 
   function validate(): boolean {
     if (selectedIds.length === 0) {
@@ -120,6 +142,7 @@ export function AvailabilityForm({
     if (!validate()) return;
 
     onSubmit({
+      date: selectedDate,
       personIds: selectedIds,
       durationMinutes: Number(duration),
       stepMinutes: step ? Number(step) : undefined,
@@ -138,7 +161,7 @@ export function AvailabilityForm({
         <CardTitle>Find Availability</CardTitle>
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <CardDescription className="text-sm">
-            Select participants, then set duration and step.
+            Choose a planning date, select participants, then set duration and step.
           </CardDescription>
         </div>
       </CardHeader>
@@ -152,6 +175,27 @@ export function AvailabilityForm({
           className="space-y-6"
         >
           <div className="space-y-2">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <Label htmlFor="planning-date">Planning date</Label>
+                <span className="text-sm text-muted-foreground">
+                  Choose a seeded scheduling day
+                </span>
+              </div>
+              <select
+                id="planning-date"
+                value={selectedDate}
+                onChange={(e) => onSelectedDateChange(e.target.value)}
+                className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex h-10 w-full rounded-md border px-3 py-2 text-sm shadow-xs focus-visible:ring-[3px] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {availableDates.map((date) => (
+                  <option key={date} value={date}>
+                    {formatPlanningDate(date)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <Label>Participants</Label>
               <div className="flex items-center gap-1 self-start sm:self-auto">
@@ -250,6 +294,7 @@ export function AvailabilityForm({
               </p>
             )}
           </div>
+
         </form>
       </CardContent>
     </Card>

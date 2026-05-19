@@ -1,4 +1,5 @@
-import { calendarEvents, people } from "../../data/seed.js";
+import { availableDates, calendarEvents, people } from "../../data/seed.js";
+import { AppError } from "../../shared/errors/AppError.js";
 import { clipInterval } from "../../shared/utils/intervals.js";
 import {
   formatMinutesToTime,
@@ -29,6 +30,12 @@ export type PersonWithEvents = {
   };
   events: PersonEventView[];
 };
+
+function assertAvailableDate(date: string) {
+  if (!availableDates.includes(date as (typeof availableDates)[number])) {
+    throw new AppError(`Unknown planning date: ${date}`, 400);
+  }
+}
 
 type EventWithOrder = PersonEventView & {
   sourceIndex: number;
@@ -94,7 +101,13 @@ function classifyEvent(
   };
 }
 
-export function getAllPeople(): PersonWithEvents[] {
+export function getAvailableDates(): string[] {
+  return [...availableDates];
+}
+
+export function getAllPeople(date: string): PersonWithEvents[] {
+  assertAvailableDate(date);
+
   return people.map((person) => {
     const workingStart = parseTimeToMinutes(person.workingHours.start);
     const workingEnd = parseTimeToMinutes(person.workingHours.end);
@@ -109,7 +122,9 @@ export function getAllPeople(): PersonWithEvents[] {
 
     const personEvents = calendarEvents
       .map((event, sourceIndex) => ({ event, sourceIndex }))
-      .filter(({ event }) => event.personId === person.id)
+      .filter(
+        ({ event }) => event.personId === person.id && event.date === date,
+      )
       .map(({ event, sourceIndex }) =>
         classifyEvent(event, sourceIndex, workingStart, workingEnd),
       );

@@ -1,3 +1,5 @@
+import type { ComponentProps } from "react";
+import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -22,10 +24,34 @@ const people: PersonWithEvents[] = [
   },
 ];
 
+function ControlledAvailabilityForm(
+  props: Omit<
+    ComponentProps<typeof AvailabilityForm>,
+    | "availableDates"
+    | "selectedDate"
+    | "onSelectedDateChange"
+    | "selectedIds"
+    | "onSelectedIdsChange"
+  >,
+) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  return (
+    <AvailabilityForm
+      {...props}
+      availableDates={["2026-05-18", "2026-05-19"]}
+      selectedDate="2026-05-18"
+      onSelectedDateChange={vi.fn()}
+      selectedIds={selectedIds}
+      onSelectedIdsChange={setSelectedIds}
+    />
+  );
+}
+
 describe("AvailabilityForm", () => {
   it("shows the compact form guidance and helper text", () => {
     render(
-      <AvailabilityForm
+      <ControlledAvailabilityForm
         people={people}
         status="idle"
         lastSubmittedRequest={null}
@@ -35,8 +61,14 @@ describe("AvailabilityForm", () => {
     );
 
     expect(
-      screen.getByText("Select participants, then set duration and step."),
+      screen.queryByText("Select participants, then set duration and step."),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Choose a planning date, select participants, then set duration and step.",
+      ),
     ).toBeInTheDocument();
+    expect(screen.getByLabelText("Planning date")).toBeInTheDocument();
     expect(screen.getByText("Meeting length")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Show field help" })).toBeInTheDocument();
   });
@@ -45,7 +77,7 @@ describe("AvailabilityForm", () => {
     const user = userEvent.setup();
 
     render(
-      <AvailabilityForm
+      <ControlledAvailabilityForm
         people={[
           ...people,
           {
@@ -74,7 +106,7 @@ describe("AvailabilityForm", () => {
     const onSubmit = vi.fn();
 
     render(
-      <AvailabilityForm
+      <ControlledAvailabilityForm
         people={people}
         status="idle"
         lastSubmittedRequest={null}
@@ -103,7 +135,7 @@ describe("AvailabilityForm", () => {
     const onSubmit = vi.fn();
 
     render(
-      <AvailabilityForm
+      <ControlledAvailabilityForm
         people={people}
         status="idle"
         lastSubmittedRequest={null}
@@ -116,6 +148,7 @@ describe("AvailabilityForm", () => {
     await user.click(screen.getByRole("button", { name: "Find Slots" }));
 
     expect(onSubmit).toHaveBeenCalledWith({
+      date: "2026-05-18",
       personIds: ["alice"],
       durationMinutes: 60,
       stepMinutes: 15,
@@ -127,10 +160,11 @@ describe("AvailabilityForm", () => {
     const onDirtyChange = vi.fn();
 
     render(
-      <AvailabilityForm
+      <ControlledAvailabilityForm
         people={people}
         status="success"
         lastSubmittedRequest={{
+          date: "2026-05-18",
           personIds: ["alice"],
           durationMinutes: 60,
           stepMinutes: 15,
@@ -153,9 +187,15 @@ describe("AvailabilityForm", () => {
 
     render(
       <AvailabilityForm
+        availableDates={["2026-05-18", "2026-05-19"]}
         people={people}
+        selectedDate="2026-05-18"
         status="success"
+        selectedIds={["alice"]}
+        onSelectedDateChange={vi.fn()}
+        onSelectedIdsChange={vi.fn()}
         lastSubmittedRequest={{
+          date: "2026-05-18",
           personIds: ["alice"],
           durationMinutes: 60,
           stepMinutes: 15,
@@ -176,7 +216,7 @@ describe("AvailabilityForm", () => {
 
   it("renders field help as an accessible button trigger", () => {
     render(
-      <AvailabilityForm
+      <ControlledAvailabilityForm
         people={people}
         status="idle"
         lastSubmittedRequest={null}
@@ -187,4 +227,37 @@ describe("AvailabilityForm", () => {
 
     expect(screen.getByRole("button", { name: "Show field help" })).toBeInTheDocument();
   });
+
+  it("marks results stale when the planning date changes", async () => {
+    const user = userEvent.setup();
+    const onDirtyChange = vi.fn();
+    const onSelectedDateChange = vi.fn();
+
+    render(
+      <AvailabilityForm
+        availableDates={["2026-05-18", "2026-05-19"]}
+        people={people}
+        selectedDate="2026-05-19"
+        status="success"
+        selectedIds={["alice"]}
+        onSelectedDateChange={onSelectedDateChange}
+        onSelectedIdsChange={vi.fn()}
+        lastSubmittedRequest={{
+          date: "2026-05-18",
+          personIds: ["alice"],
+          durationMinutes: 60,
+          stepMinutes: 15,
+        }}
+        onDirtyChange={onDirtyChange}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+    await user.selectOptions(screen.getByLabelText("Planning date"), "2026-05-18");
+
+    expect(onSelectedDateChange).toHaveBeenCalledWith("2026-05-18");
+  });
+
 });

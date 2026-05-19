@@ -6,14 +6,23 @@ import type {
   PersonWithEvents,
   Status,
 } from "./types";
-import { fetchAvailability, fetchPeople } from "./services/api";
+import {
+  fetchAvailability,
+  fetchAvailableDates,
+  fetchPeople,
+} from "./services/api";
 import { AvailabilityForm } from "./components/AvailabilityForm";
 import { AvailabilityResults } from "./components/AvailabilityResults";
+import { ScheduleVisualization } from "./features/schedule-visualization/ScheduleVisualization";
+import { formatPlanningDate } from "./lib/date";
 
 function App() {
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState("");
   const [people, setPeople] = useState<PersonWithEvents[]>([]);
   const [peopleStatus, setPeopleStatus] = useState<Status>("idle");
   const [peopleError, setPeopleError] = useState<ApiError | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [availability, setAvailability] = useState<AvailabilityResponse | null>(
     null,
@@ -27,30 +36,82 @@ function App() {
   const [availabilityIsStale, setAvailabilityIsStale] = useState(false);
   const availabilityRequestIdRef = useRef(0);
   const availabilityAbortRef = useRef<AbortController | null>(null);
+  const peopleAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    async function loadPeople() {
+    async function loadInitialData() {
       setPeopleStatus("loading");
       setPeopleError(null);
 
       try {
-        const data = await fetchPeople();
-        setPeople(data);
-        setPeopleStatus("success");
+        const dates = await fetchAvailableDates();
+        setAvailableDates(dates);
+
+        if (dates.length === 0) {
+          setPeople([]);
+          setSelectedDate("");
+          setPeopleStatus("success");
+          return;
+        }
+
+        setSelectedDate(dates[0]);
       } catch (err) {
         setPeopleStatus("error");
         setPeopleError(err as ApiError);
       }
     }
 
-    loadPeople();
+    loadInitialData();
   }, []);
 
   useEffect(() => {
     return () => {
+      peopleAbortRef.current?.abort();
       availabilityAbortRef.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (!selectedDate) {
+      return;
+    }
+
+    peopleAbortRef.current?.abort();
+    const controller = new AbortController();
+    peopleAbortRef.current = controller;
+
+    async function loadPeopleForDate() {
+      setPeopleStatus((current) => (current === "idle" ? "loading" : current));
+      setPeopleError(null);
+
+      try {
+        const data = await fetchPeople(selectedDate, { signal: controller.signal });
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setPeople(data);
+        setSelectedIds((current) =>
+          current.filter((id) => data.some((person) => person.id === id)),
+        );
+        setPeopleStatus("success");
+      } catch (err) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setPeopleStatus("error");
+        setPeopleError(err as ApiError);
+      } finally {
+        if (peopleAbortRef.current === controller) {
+          peopleAbortRef.current = null;
+        }
+      }
+    }
+
+    loadPeopleForDate();
+  }, [selectedDate]);
 
   async function handleSubmit(payload: AvailabilityRequest) {
     availabilityAbortRef.current?.abort();
@@ -103,16 +164,20 @@ function App() {
     setAvailabilityIsStale(false);
   }
 
+  const selectedPeople = people.filter((person) => selectedIds.includes(person.id));
+  const hasParticipants = people.length > 0 && selectedDate !== "";
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-6">
       <h1 className="text-3xl leading-tight font-bold sm:text-4xl">
         Availability Finder{" "}
         <span className="mt-1 block text-base font-medium text-muted-foreground sm:mt-0 sm:inline sm:text-lg">
-          (One-day view)
+          (Date-aware planner)
         </span>
       </h1>
 
-      {peopleStatus === "loading" && <p>Loading participants...</p>}
+      {peopleStatus === "loading" && !hasParticipants && (
+        <p>Loading planning dates and participants...</p>
+      )}
 
       {peopleStatus === "error" && (
         <p className="text-red-500">
@@ -120,15 +185,24 @@ function App() {
         </p>
       )}
 
-      {peopleStatus === "success" && people.length === 0 && (
-        <p>No participants available</p>
+      {peopleStatus === "success" && availableDates.length === 0 && (
+        <p>No planning dates available</p>
       )}
 
-      {peopleStatus === "success" && people.length > 0 && (
+      {peopleStatus === "success" && availableDates.length > 0 && people.length === 0 && (
+        <p>No participants available for {formatPlanningDate(selectedDate)}</p>
+      )}
+
+      {hasParticipants && (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
           <AvailabilityForm
+            availableDates={availableDates}
             people={people}
+            selectedDate={selectedDate}
             status={availabilityStatus}
+            selectedIds={selectedIds}
+            onSelectedDateChange={setSelectedDate}
+            onSelectedIdsChange={setSelectedIds}
             lastSubmittedRequest={lastSubmittedRequest}
             onDirtyChange={setAvailabilityIsStale}
             onSubmit={handleSubmit}
@@ -139,9 +213,25 @@ function App() {
             status={availabilityStatus}
             error={availabilityError}
             isStale={availabilityIsStale}
+            selectedDate={selectedDate}
+            submittedDate={lastSubmittedRequest?.date ?? null}
             onClear={handleClearResults}
           />
         </div>
+      )}
+
+      {hasParticipants && peopleStatus === "loading" && (
+        <p className="text-sm text-muted-foreground">
+          Updating participants and events for {formatPlanningDate(selectedDate)}.
+        </p>
+      )}
+
+      {peopleStatus === "success" && selectedPeople.length > 0 && (
+        <ScheduleVisualization
+          people={selectedPeople}
+          availability={availability}
+          isStale={availabilityIsStale}
+        />
       )}
     </div>
   );

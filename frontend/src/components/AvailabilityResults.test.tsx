@@ -23,12 +23,14 @@ describe("AvailabilityResults", () => {
         status="idle"
         error={null}
         isStale={false}
+        selectedDate="2026-05-18"
+        submittedDate={null}
         onClear={() => {}}
       />,
     );
 
     expect(
-      screen.getByText("Select participants to view matching slots."),
+      screen.getByText("Select participants and a planning date to view matching slots."),
     ).toBeInTheDocument();
   });
 
@@ -39,13 +41,15 @@ describe("AvailabilityResults", () => {
         status="loading"
         error={null}
         isStale={false}
+        selectedDate="2026-05-18"
+        submittedDate={null}
         onClear={() => {}}
       />,
     );
 
     expect(
       screen.getByText(
-        "Calculating overlapping availability for the selected participants.",
+        "Calculating overlapping availability for Mon, May 18, 2026.",
       ),
     ).toBeInTheDocument();
   });
@@ -57,6 +61,8 @@ describe("AvailabilityResults", () => {
         status="error"
         error={error}
         isStale={false}
+        selectedDate="2026-05-18"
+        submittedDate={null}
         onClear={() => {}}
       />,
     );
@@ -71,12 +77,14 @@ describe("AvailabilityResults", () => {
         status="success"
         error={null}
         isStale={false}
+        selectedDate="2026-05-18"
+        submittedDate="2026-05-18"
         onClear={() => {}}
       />,
     );
 
     expect(
-      screen.getByText("No matching slots found for this duration."),
+      screen.getByText("No matching slots found for Mon, May 18, 2026."),
     ).toBeInTheDocument();
     expect(
       screen.getByText("Try a shorter duration or fewer participants."),
@@ -90,11 +98,14 @@ describe("AvailabilityResults", () => {
         status="success"
         error={null}
         isStale={false}
+        selectedDate="2026-05-18"
+        submittedDate="2026-05-18"
         onClear={() => {}}
       />,
     );
 
     expect(screen.getByText("1 matching slot found")).toBeInTheDocument();
+    expect(screen.getByText("Mon, May 18, 2026")).toBeInTheDocument();
     expect(
       screen.getByText("All selected participants are working during this time."),
     ).toBeInTheDocument();
@@ -108,12 +119,16 @@ describe("AvailabilityResults", () => {
         status="success"
         error={null}
         isStale={true}
+        selectedDate="2026-05-19"
+        submittedDate="2026-05-18"
         onClear={() => {}}
       />,
     );
 
     expect(
-      screen.getByText("Inputs changed. Click Find Slots to refresh availability."),
+      screen.getByText(
+        "Showing results for Mon, May 18, 2026. Click Find Slots to refresh Tue, May 19, 2026.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText("Results are out of date.")).toBeInTheDocument();
   });
@@ -128,6 +143,8 @@ describe("AvailabilityResults", () => {
         status="success"
         error={null}
         isStale={false}
+        selectedDate="2026-05-18"
+        submittedDate="2026-05-18"
         onClear={onClear}
       />,
     );

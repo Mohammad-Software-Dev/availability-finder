@@ -31,6 +31,7 @@ export type PersonWithEvents = {
 };
 
 export type AvailabilityRequest = {
+  date: string;
   personIds: string[];
   durationMinutes: number;
   stepMinutes?: number;

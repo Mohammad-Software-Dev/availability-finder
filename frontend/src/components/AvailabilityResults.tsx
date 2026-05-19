@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatPlanningDate } from "@/lib/date";
 import type { AvailabilityResponse, ApiError, Status } from "@/types";
 
 type Props = {
@@ -8,6 +9,8 @@ type Props = {
   status: Status;
   error: ApiError | null;
   isStale: boolean;
+  selectedDate: string;
+  submittedDate: string | null;
   onClear: () => void;
 };
 
@@ -16,15 +19,24 @@ export function AvailabilityResults({
   status,
   error,
   isStale,
+  selectedDate,
+  submittedDate,
   onClear,
 }: Props) {
   let content: ReactNode = null;
   const canClear = status !== "idle" || data !== null || error !== null || isStale;
+  const displayedDate = isStale && submittedDate ? submittedDate : selectedDate;
+  const formattedDisplayedDate = displayedDate
+    ? formatPlanningDate(displayedDate)
+    : "the selected date";
+  const formattedSelectedDate = selectedDate
+    ? formatPlanningDate(selectedDate)
+    : "the selected date";
 
   if (status === "loading") {
     content = (
       <p className="text-muted-foreground">
-        Calculating overlapping availability for the selected participants.
+        Calculating overlapping availability for {formattedSelectedDate}.
       </p>
     );
   } else if (status === "error") {
@@ -36,7 +48,7 @@ export function AvailabilityResults({
   } else if (status === "idle") {
     content = (
       <p className="text-muted-foreground">
-        Select participants to view matching slots.
+        Select participants and a planning date to view matching slots.
       </p>
     );
   } else if (data) {
@@ -46,10 +58,20 @@ export function AvailabilityResults({
           <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             <p className="font-medium">Results are out of date.</p>
             <p className="mt-1">
-              Inputs changed. Click Find Slots to refresh availability.
+              {submittedDate && submittedDate !== selectedDate
+                ? `Showing results for ${formattedDisplayedDate}. Click Find Slots to refresh ${formattedSelectedDate}.`
+                : "Inputs changed. Click Find Slots to refresh availability."}
             </p>
           </div>
         )}
+
+        <div>
+          <h3 className="font-semibold text-base">Planning Date</h3>
+          <p className="text-sm text-muted-foreground">
+            Availability context for this request.
+          </p>
+          <p>{formattedDisplayedDate}</p>
+        </div>
 
         <div>
           <h3 className="font-semibold text-base">Common Working Window</h3>
@@ -76,7 +98,7 @@ export function AvailabilityResults({
 
           {data.slots.length === 0 ? (
             <div className="text-muted-foreground border-muted-foreground bg-muted-background rounded-md border px-3 py-2 text-sm">
-              <p>No matching slots found for this duration.</p>
+              <p>No matching slots found for {formattedDisplayedDate}.</p>
               <p className="mt-1">Try a shorter duration or fewer participants.</p>
             </div>
           ) : (

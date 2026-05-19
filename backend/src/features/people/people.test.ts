@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { calendarEvents } from "../../data/seed.js";
+import { availableDates, calendarEvents } from "../../data/seed.js";
 import { errorHandler } from "../../shared/errors/errorHandler.js";
-import { handleGetPeople } from "./people.controller.js";
-import { getAllPeople } from "./people.service.js";
+import { handleGetPeople, handleGetPeopleDates } from "./people.controller.js";
+import { getAllPeople, getAvailableDates } from "./people.service.js";
 
 describe("getAllPeople", () => {
   it("returns people with working hours and enriched events", () => {
-    const data = getAllPeople();
+    const data = getAllPeople("2026-05-18");
 
     expect(data.length).toBeGreaterThan(0);
     expect(data[0]).toEqual(
@@ -23,7 +23,7 @@ describe("getAllPeople", () => {
   });
 
   it("classifies messy events with expected invalid reasons", () => {
-    const data = getAllPeople();
+    const data = getAllPeople("2026-05-18");
 
     const byId = new Map(
       data.flatMap((person) => person.events.map((event) => [event.id, event])),
@@ -52,7 +52,7 @@ describe("getAllPeople", () => {
   });
 
   it("orders valid events by start time and keeps invalid events at the end", () => {
-    const bob = getAllPeople().find((person) => person.id === "bob");
+    const bob = getAllPeople("2026-05-18").find((person) => person.id === "bob");
     expect(bob).toBeDefined();
     expect(bob?.events.map((event) => event.id)).toEqual([
       "b1",
@@ -64,21 +64,40 @@ describe("getAllPeople", () => {
   });
 
   it("keeps Charlie with one valid event and one invalid event", () => {
-    const charlie = getAllPeople().find((person) => person.id === "charlie");
+    const charlie = getAllPeople("2026-05-18").find(
+      (person) => person.id === "charlie",
+    );
     expect(charlie?.events.map((event) => event.id)).toEqual(["c2", "m3"]);
+  });
+
+  it("returns only events for the selected date", () => {
+    const alice = getAllPeople("2026-05-19").find((person) => person.id === "alice");
+
+    expect(alice?.events.map((event) => event.id)).toEqual(["a4", "a5", "m11"]);
+  });
+
+  it("returns empty event collections for dates with no person events", () => {
+    const fatima = getAllPeople("2026-05-20").find(
+      (person) => person.id === "fatima",
+    );
+
+    expect(fatima?.events).toEqual([]);
   });
 
   it("clips partially overlapping valid events to working hours", () => {
     calendarEvents.push({
       id: "clip-test",
       personId: "alice",
+      date: "2026-05-18",
       title: "Early overlap",
       start: "08:00",
       end: "10:00",
     });
 
     try {
-      const alice = getAllPeople().find((person) => person.id === "alice");
+      const alice = getAllPeople("2026-05-18").find(
+        (person) => person.id === "alice",
+      );
       expect(alice?.events.find((event) => event.id === "clip-test")).toEqual({
         id: "clip-test",
         title: "Early overlap",
@@ -96,9 +115,37 @@ describe("getAllPeople", () => {
   });
 });
 
+describe("getAvailableDates", () => {
+  it("returns the seeded planning dates in order", () => {
+    expect(getAvailableDates()).toEqual([...availableDates]);
+  });
+});
+
 describe("people controller", () => {
-  it("returns 200 and enriched people payload", () => {
+  it("returns 200 with the available planning dates", () => {
     const req = {} as any;
+    let statusCode = 0;
+    let jsonBody: unknown;
+
+    const res = {
+      status(code: number) {
+        statusCode = code;
+        return this;
+      },
+      json(payload: unknown) {
+        jsonBody = payload;
+        return this;
+      },
+    } as any;
+
+    handleGetPeopleDates(req, res, vi.fn());
+
+    expect(statusCode).toBe(200);
+    expect(jsonBody).toEqual({ dates: [...availableDates] });
+  });
+
+  it("returns 200 and enriched people payload", () => {
+    const req = { query: { date: "2026-05-18" } } as any;
     let statusCode = 0;
     let jsonBody: unknown;
 
