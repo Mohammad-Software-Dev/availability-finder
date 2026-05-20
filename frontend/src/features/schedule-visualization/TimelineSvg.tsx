@@ -9,8 +9,8 @@ import { TimelineGrid } from "./TimelineGrid";
 import { TimelineRow } from "./TimelineRow";
 import { getScaleX } from "./utils";
 
-const LABEL_COLUMN_WIDTH = 170;
-const LABEL_HEADER_HEIGHT = 22;
+const LABEL_COLUMN_WIDTH = 148;
+const HEADER_TOP_GAP = 8;
 const AXIS_HEIGHT = 26;
 const DENSITY_HEIGHT = 18;
 const SLOT_STRIP_HEIGHT = 30;
@@ -55,7 +55,7 @@ export function TimelineSvg({ width, model, onItemEnter, onItemLeave }: Props) {
   );
   const rowsHeight = model.rows.length * (ROW_HEIGHT + ROW_GAP);
   const chartHeight =
-    LABEL_HEADER_HEIGHT +
+    HEADER_TOP_GAP +
     AXIS_HEIGHT +
     DENSITY_HEIGHT +
     SLOT_STRIP_HEIGHT +
@@ -64,7 +64,7 @@ export function TimelineSvg({ width, model, onItemEnter, onItemLeave }: Props) {
   const timelineOffsetX = LABEL_COLUMN_WIDTH;
   const rowsStartY =
     PADDING_Y +
-    LABEL_HEADER_HEIGHT +
+    HEADER_TOP_GAP +
     AXIS_HEIGHT +
     DENSITY_HEIGHT +
     SLOT_STRIP_HEIGHT;
@@ -85,27 +85,20 @@ export function TimelineSvg({ width, model, onItemEnter, onItemLeave }: Props) {
       className="overflow-visible"
     >
       <g transform={`translate(${PADDING_X}, ${PADDING_Y})`}>
-        <text
-          x={0}
-          y={14}
-          className="fill-muted-foreground text-[10px] font-medium uppercase tracking-[0.18em]"
-        >
-          Participant
-        </text>
-        <text
-          x={timelineOffsetX}
-          y={14}
-          className="fill-muted-foreground text-[10px] font-medium uppercase tracking-[0.18em]"
-        >
-          Scheduling day
-        </text>
-
-        <g transform={`translate(${timelineOffsetX}, ${LABEL_HEADER_HEIGHT})`}>
+        <g transform={`translate(${timelineOffsetX}, ${HEADER_TOP_GAP})`}>
           <TimelineAxis
             domain={model.domain}
             width={timelineWidth}
             height={AXIS_HEIGHT}
           />
+
+          <text
+            x={-LABEL_COLUMN_WIDTH}
+            y={AXIS_HEIGHT + 12}
+            className="fill-slate-700 text-[10px] font-medium uppercase tracking-[0.14em]"
+          >
+            Availability overlap
+          </text>
 
           <g transform={`translate(0, ${AXIS_HEIGHT})`}>
             <TimelineDensityBand
@@ -126,9 +119,9 @@ export function TimelineSvg({ width, model, onItemEnter, onItemLeave }: Props) {
               className="fill-slate-100"
             />
             <text
-              x={8}
+              x={-LABEL_COLUMN_WIDTH}
               y={19}
-              className="fill-muted-foreground text-[10px] font-medium uppercase tracking-[0.14em]"
+              className="fill-slate-700 text-[10px] font-medium uppercase tracking-[0.14em]"
             >
               Suggested slots
             </text>

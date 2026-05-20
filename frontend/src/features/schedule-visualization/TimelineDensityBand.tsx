@@ -16,7 +16,7 @@ export function TimelineDensityBand({
   height,
 }: Props) {
   return (
-    <g aria-label="Availability overlap density band">
+    <g aria-label="Availability overlap density band. Deeper blue means more selected participants are free. Green marks the strongest overlap.">
       {buckets.map((bucket) => {
         const x = getScaleX(bucket.start, domain, width);
         const bucketWidth = getScaleX(bucket.end, domain, width) - x;

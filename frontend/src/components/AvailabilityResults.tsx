@@ -1,11 +1,10 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { formatPlanningDate } from "@/lib/date";
 import type { AvailabilityResponse, ApiError, Status } from "@/types";
@@ -30,6 +29,7 @@ export function AvailabilityResults({
   onClear,
 }: Props) {
   let content: ReactNode = null;
+  const titleId = useId();
   const canClear = status !== "idle" || data !== null || error !== null || isStale;
   const displayedDate = isStale && submittedDate ? submittedDate : selectedDate;
   const formattedDisplayedDate = displayedDate
@@ -142,31 +142,40 @@ export function AvailabilityResults({
   }
 
   return (
-    <Card>
-      <CardHeader className="space-y-3">
-        <div className="flex flex-row items-center justify-between gap-2">
-          <CardTitle className="text-xl">Available Time Slots</CardTitle>
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            onClick={onClear}
-            disabled={!canClear}
-          >
-            Clear results
-          </Button>
-        </div>
-        <CardDescription className="text-sm">
-          Review the quick answer for the current selection, including the
-          active planning date, shared working window, matching slots, and any
-          data-quality warnings.
-        </CardDescription>
-      </CardHeader>
-      {status === "success" && data ? (
-        content
-      ) : (
-        <CardContent>{content}</CardContent>
-      )}
-    </Card>
+    <section aria-labelledby={titleId}>
+      <Card>
+        <CardHeader className="space-y-3">
+          <div className="flex flex-row items-start justify-between gap-3">
+            <div className="space-y-1">
+              <h2
+                id={titleId}
+                className="font-heading text-xl leading-snug font-medium"
+              >
+                Available Time Slots
+              </h2>
+              <CardDescription className="text-sm">
+                Review the quick answer for the current selection, including the
+                active planning date, shared working window, matching slots, and
+                any data-quality warnings.
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={onClear}
+              disabled={!canClear}
+            >
+              Clear results
+            </Button>
+          </div>
+        </CardHeader>
+        {status === "success" && data ? (
+          content
+        ) : (
+          <CardContent>{content}</CardContent>
+        )}
+      </Card>
+    </section>
   );
 }

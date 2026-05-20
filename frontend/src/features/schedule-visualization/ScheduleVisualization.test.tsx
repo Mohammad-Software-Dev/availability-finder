@@ -59,17 +59,25 @@ describe("ScheduleVisualization", () => {
     render(
       <ScheduleVisualization
         people={people}
+        selectedCount={people.length}
         availability={availability}
         isStale={false}
       />,
     );
 
+    expect(
+      screen.getByRole("heading", { name: "Scheduling Analysis" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Alice Johnson")).toBeInTheDocument();
     expect(screen.getByText("Bob Smith")).toBeInTheDocument();
     expect(screen.getByTestId("busy-alice-a1")).toBeInTheDocument();
     expect(screen.getByTestId("shared-window")).toBeInTheDocument();
     expect(screen.getByTestId("slot-slot-0")).toBeInTheDocument();
-    expect(screen.getByLabelText("Availability overlap density band")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(
+        "Availability overlap density band. Deeper blue means more selected participants are free. Green marks the strongest overlap.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("exposes tooltip content on focus for slots and busy intervals", async () => {
@@ -78,6 +86,7 @@ describe("ScheduleVisualization", () => {
     render(
       <ScheduleVisualization
         people={people}
+        selectedCount={people.length}
         availability={availability}
         isStale={false}
       />,
@@ -102,6 +111,7 @@ describe("ScheduleVisualization", () => {
     render(
       <ScheduleVisualization
         people={people}
+        selectedCount={people.length}
         availability={availability}
         isStale={true}
       />,

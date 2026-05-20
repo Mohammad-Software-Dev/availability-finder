@@ -23,6 +23,14 @@ type Props = {
   onSubmit: (payload: AvailabilityRequest) => void;
 };
 
+type ControlHeaderProps = {
+  htmlFor: string;
+  label: string;
+  helper?: string;
+  details?: string;
+  detailsClassName?: string;
+};
+
 function getPositiveWholeNumberError(
   value: string,
   label: "Duration" | "Step",
@@ -71,6 +79,32 @@ function areInputsDirty(
     ) ||
     String(lastSubmittedRequest.durationMinutes) !== nextValues.duration ||
     String(lastSubmittedRequest.stepMinutes ?? 15) !== normalizedStep
+  );
+}
+
+function ControlHeader({
+  htmlFor,
+  label,
+  helper,
+  details,
+  detailsClassName,
+}: ControlHeaderProps) {
+  return (
+    <div className="flex min-h-5 flex-wrap items-baseline gap-x-2 gap-y-1">
+      <Label htmlFor={htmlFor}>{label}</Label>
+      {(helper || details) && (
+        <span className="inline-flex items-center gap-1.5 text-xs leading-none text-muted-foreground">
+          {helper ? <span>{helper}</span> : null}
+          {details ? (
+            <FieldHelp
+              details={details}
+              className="text-slate-500"
+              detailsClassName={detailsClassName}
+            />
+          ) : null}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -181,12 +215,11 @@ export function AvailabilityForm({
         >
           <div className="grid gap-4 xl:grid-cols-4">
             <div className="space-y-2">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <Label htmlFor="planning-date">Planning date</Label>
-                <span className="text-xs text-muted-foreground">
-                  Choose a seeded scheduling day
-                </span>
-              </div>
+              <ControlHeader
+                htmlFor="planning-date"
+                label="Planning date"
+                helper="Choose a seeded scheduling day"
+              />
               <div className="relative">
                 <select
                   id="planning-date"
@@ -205,12 +238,11 @@ export function AvailabilityForm({
             </div>
 
             <div className="space-y-2">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <span className="text-xs text-muted-foreground">
-                  Meeting length
-                </span>
-              </div>
+              <ControlHeader
+                htmlFor="duration"
+                label="Duration (minutes)"
+                helper="Meeting length"
+              />
               <Input
                 id="duration"
                 type="number"
@@ -226,17 +258,13 @@ export function AvailabilityForm({
             </div>
 
             <div className="space-y-2">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <Label htmlFor="step">Step (minutes)</Label>
-                <span className="inline-flex items-center gap-1.5 text-xs leading-none text-muted-foreground">
-                  <span>Start-time interval</span>
-                  <FieldHelp
-                    details="Example: 15 checks 10:00, 10:15, 10:30 and so on."
-                    className="text-slate-500"
-                    detailsClassName="-left-2 top-6 w-64 translate-x-0"
-                  />
-                </span>
-              </div>
+              <ControlHeader
+                htmlFor="step"
+                label="Step (minutes)"
+                helper="Start-time interval"
+                details="Example: 15 checks 10:00, 10:15, 10:30 and so on."
+                detailsClassName="-left-2 top-6 w-64 translate-x-0"
+              />
               <Input
                 id="step"
                 type="number"
@@ -288,54 +316,6 @@ export function AvailabilityForm({
               ))}
             </div>
           </div>
-
-          {false && (
-            <div className="grid gap-4 md:grid-cols-2 lg:max-w-[50%]">
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                  <Label htmlFor="duration">Duration (minutes)</Label>
-                  <span className="text-sm text-muted-foreground">
-                    Meeting length
-                  </span>
-                </div>
-                <Input
-                  id="duration"
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  placeholder="60"
-                />
-                {durationError && (
-                  <p className="text-sm text-red-500">{durationError}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <Label htmlFor="step">Step (minutes)</Label>
-                  <FieldHelp
-                    details="Start-time interval. Example: 15 checks 10:00, 10:15, 10:30 and so on."
-                    className="text-slate-500"
-                    detailsClassName="-left-2 top-6 w-64 translate-x-0"
-                  />
-                </div>
-                <Input
-                  id="step"
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={step}
-                  onChange={(e) => setStep(e.target.value)}
-                  placeholder="15"
-                />
-                {stepError && (
-                  <p className="text-sm text-red-500">{stepError}</p>
-                )}
-              </div>
-            </div>
-          )}
 
           <p className="text-xs text-muted-foreground">
             {selectedIds.length} participant

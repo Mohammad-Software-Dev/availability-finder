@@ -80,9 +80,7 @@ describe("App request lifecycle", () => {
       screen.getByText("Select participants and a planning date to view matching slots."),
     ).toBeInTheDocument();
     expect(screen.queryByText("13:00 → 14:00")).not.toBeInTheDocument();
-    expect(
-      screen.getByText("Scheduling Analysis"),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Scheduling Analysis" })).toBeInTheDocument();
   });
 
   it("only applies the latest successful submit", async () => {
@@ -107,9 +105,7 @@ describe("App request lifecycle", () => {
     });
 
     expect(await screen.findByText("14:00 → 15:00")).toBeInTheDocument();
-    expect(
-      screen.getByText("Scheduling Analysis"),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Scheduling Analysis" })).toBeInTheDocument();
 
     await act(async () => {
       firstPending.resolve(firstResult);

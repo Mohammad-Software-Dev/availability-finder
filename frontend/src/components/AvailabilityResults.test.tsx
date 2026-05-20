@@ -30,6 +30,9 @@ describe("AvailabilityResults", () => {
     );
 
     expect(
+      screen.getByRole("heading", { name: "Available Time Slots" }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByText("Select participants and a planning date to view matching slots."),
     ).toBeInTheDocument();
   });

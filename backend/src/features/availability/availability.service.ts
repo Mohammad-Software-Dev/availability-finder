@@ -1,22 +1,20 @@
 import {
-  availableDates,
-  calendarEvents,
   people,
-  SeedPerson,
+  type SeedPerson,
 } from "../../data/seed.js";
 import { AppError } from "../../shared/errors/AppError.js";
 import { Interval } from "../../shared/types/common.js";
 import {
-  clipInterval,
   mergeIntervals,
   findFreeWindows,
   generateSlots,
 } from "../../shared/utils/intervals.js";
+import { assertAvailableDate } from "../../shared/utils/planningDates.js";
 import {
-  formatMinutesToTime,
-  isValidInterval,
-  parseTimeToMinutes,
-} from "../../shared/utils/time.js";
+  normalizePersonCalendar,
+  type NormalizedCalendarEvent,
+} from "../../shared/utils/personSchedule.js";
+import { formatMinutesToTime } from "../../shared/utils/time.js";
 import type { AvailabilityRequestInput } from "./availability.schemas.js";
 import { AvailabilityResponse } from "./availability.types.js";
 
@@ -32,56 +30,15 @@ function normalizePersonAvailability(
   person: SeedPerson,
   date: string,
 ): NormalizedPersonAvailability {
-  const warnings: string[] = [];
-
-  // Parse working hours
-  const start = parseTimeToMinutes(person.workingHours.start);
-  const end = parseTimeToMinutes(person.workingHours.end);
-
-  if (start === null || end === null || !isValidInterval(start, end)) {
-    throw new Error(`Invalid working hours for ${person.id}`);
-  }
-
-  const workingHours: Interval = { start, end };
-
-  // Get events for this person
-  const events = calendarEvents.filter(
-    (event) => event.personId === person.id && event.date === date,
+  const { workingHours, events } = normalizePersonCalendar(person, date);
+  const warnings = events
+    .filter((event) => !event.isValid)
+    .map((event) => toAvailabilityWarning(person.name, event));
+  const mergedBusy = mergeIntervals(
+    events.flatMap((event) =>
+      event.isValid && event.clippedInterval ? [event.clippedInterval] : [],
+    ),
   );
-
-  const busyIntervals: Interval[] = [];
-
-  for (const event of events) {
-    const start = parseTimeToMinutes(event.start);
-    const end = parseTimeToMinutes(event.end);
-
-    // Skip invalid time format
-    if (start === null || end === null) {
-      warnings.push(
-        `${person.name}: skipped invalid event (missing/invalid time)`,
-      );
-      continue;
-    }
-
-    // Skip invalid intervals
-    if (!isValidInterval(start, end)) {
-      warnings.push(`${person.name}: skipped invalid interval (start >= end)`);
-      continue;
-    }
-
-    const clipped = clipInterval({ start, end }, workingHours);
-
-    // Skip if outside working hours
-    if (!clipped) {
-      warnings.push(`${person.name}: skipped event outside working hours`);
-      continue;
-    }
-
-    busyIntervals.push(clipped);
-  }
-
-  // Merge intervals
-  const mergedBusy = mergeIntervals(busyIntervals);
 
   return {
     personId: person.id,
@@ -90,12 +47,6 @@ function normalizePersonAvailability(
     busyIntervals: mergedBusy,
     warnings,
   };
-}
-
-function assertAvailableDate(date: string) {
-  if (!availableDates.includes(date as (typeof availableDates)[number])) {
-    throw new AppError(`Unknown planning date: ${date}`, 400);
-  }
 }
 
 function getCommonWorkingWindow(
@@ -128,9 +79,12 @@ function collectBusyIntervals(
 
   for (const person of people) {
     for (const interval of person.busyIntervals) {
-      const clipped = clipInterval(interval, commonWindow);
+      const clipped = {
+        start: Math.max(interval.start, commonWindow.start),
+        end: Math.min(interval.end, commonWindow.end),
+      };
 
-      if (clipped) {
+      if (clipped.start < clipped.end) {
         allBusy.push(clipped);
       }
     }
@@ -185,6 +139,22 @@ function normalizePeopleWithWarnings(
     normalizedPeople,
     warnings: Array.from(warningsSet),
   };
+}
+
+function toAvailabilityWarning(
+  personName: string,
+  event: NormalizedCalendarEvent,
+): string {
+  switch (event.invalidReason) {
+    case "missing_time":
+      return `${personName}: skipped invalid event (missing/invalid time)`;
+    case "invalid_interval":
+      return `${personName}: skipped invalid interval (start >= end)`;
+    case "outside_working_hours":
+      return `${personName}: skipped event outside working hours`;
+    default:
+      return `${personName}: skipped invalid event`;
+  }
 }
 
 export function getAvailability(

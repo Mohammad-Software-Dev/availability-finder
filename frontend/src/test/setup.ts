@@ -9,6 +9,7 @@ class ResizeObserverMock {
 }
 
 globalThis.ResizeObserver = ResizeObserverMock;
+Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => {});
 
 afterEach(() => {
   cleanup();

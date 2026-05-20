@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { FocusEvent, MouseEvent } from "react";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import type { AvailabilityResponse, PersonWithEvents } from "@/types";
 import { TimelineSvg } from "./TimelineSvg";
@@ -18,6 +17,7 @@ import { buildVisualizationModel } from "./utils";
 
 type Props = {
   people: PersonWithEvents[];
+  selectedCount: number;
   availability: AvailabilityResponse | null;
   isStale: boolean;
 };
@@ -30,6 +30,7 @@ function getTooltipCopy(item: TimelineInterval): string {
 
 export function ScheduleVisualization({
   people,
+  selectedCount,
   availability,
   isStale,
 }: Props) {
@@ -37,13 +38,15 @@ export function ScheduleVisualization({
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [containerHeight, setContainerHeight] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const summaryId = "schedule-visualization-summary";
+  const titleId = useId();
+  const summaryId = useId();
 
   const model = useMemo(
     () => buildVisualizationModel(people, availability, isStale),
     [availability, isStale, people],
   );
-  const hasSelection = people.length > 0;
+  const hasSubmittedVisualization = people.length > 0 && availability !== null;
+  const hasPendingSelection = selectedCount > 0;
 
   useEffect(() => {
     const node = containerRef.current;
@@ -85,47 +88,42 @@ export function ScheduleVisualization({
   }
 
   return (
-    <section aria-describedby={summaryId}>
+    <section aria-labelledby={titleId} aria-describedby={summaryId}>
       <Card className="border-slate-200 bg-slate-50/60">
         <CardHeader className="pb-2">
-          <CardTitle className="text-xl text-slate-900">
+          <h2 id={titleId} className="font-heading text-xl leading-snug font-medium text-slate-900">
             Scheduling Analysis
-          </CardTitle>
+          </h2>
           <CardDescription className="text-sm">
             Inspect working hours, busy intervals, overlap density, shared
             availability, and suggested meeting slots for the current
             selection.
           </CardDescription>
-          <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
-            <span>Busy = solid blue</span>
-            <span>Shared = violet highlight</span>
-            <span>Slots = green highlight</span>
-          </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!hasSelection && (
+          {!hasPendingSelection && (
             <div className="rounded-md border border-dashed border-slate-300 bg-white/80 px-4 py-6 text-sm text-muted-foreground">
               Select at least one participant to open the scheduling analysis
               workspace.
             </div>
           )}
 
-          {hasSelection && availability === null && !isStale && (
+          {hasPendingSelection && availability === null && !isStale && (
             <div className="rounded-md border border-dashed border-slate-300 bg-white/80 px-4 py-3 text-sm text-muted-foreground">
               Select participants and click Find Slots to highlight matching
               availability in the timeline.
             </div>
           )}
 
-          {isStale && (
+          {isStale && hasSubmittedVisualization && (
             <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Result overlays are hidden until you refresh availability.
             </div>
           )}
 
-          {hasSelection && (
+          {hasSubmittedVisualization && (
             <>
-              <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
+              <div className="grid gap-2 text-sm text-slate-800 sm:grid-cols-3">
                 <p className="rounded-md bg-white/70 px-3 py-2">
                   {people.length} participant{people.length === 1 ? "" : "s"} visualized
                 </p>
@@ -153,6 +151,23 @@ export function ScheduleVisualization({
                   containerWidth={width}
                   containerHeight={Math.max(containerHeight, 320)}
                 />
+                <div className="border-t border-slate-200/80 pt-2">
+                  <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-700">
+                    <LegendSwatch className="bg-emerald-100/75 ring-1 ring-emerald-200/80">
+                      Working Hours
+                    </LegendSwatch>
+                    <LegendSwatch className="bg-sky-500/85 ring-1 ring-sky-700/80">
+                      Busy
+                    </LegendSwatch>
+                    <LegendSwatch className="bg-violet-200/60 ring-1 ring-violet-400/70">
+                      Shared Window
+                    </LegendSwatch>
+                    <LegendSwatch className="bg-emerald-300/75 ring-1 ring-emerald-700/80">
+                      Available Slot
+                    </LegendSwatch>
+                    <LegendGradient label="Availability Overlap" />
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -163,5 +178,38 @@ export function ScheduleVisualization({
         </CardContent>
       </Card>
     </section>
+  );
+}
+
+type LegendSwatchProps = {
+  children: string;
+  className: string;
+};
+
+function LegendSwatch({ children, className }: LegendSwatchProps) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span
+        aria-hidden="true"
+        className={`h-2.5 w-6 rounded-full ${className}`}
+      />
+      <span>{children}</span>
+    </span>
+  );
+}
+
+function LegendGradient({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span>{label}</span>
+      <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
+        <span>low</span>
+        <span
+          aria-hidden="true"
+          className="h-2.5 w-16 rounded-full bg-linear-to-r from-slate-300 via-sky-400 to-emerald-400"
+        />
+        <span>high</span>
+      </span>
+    </span>
   );
 }
