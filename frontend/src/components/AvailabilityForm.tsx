@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -64,7 +65,10 @@ function areInputsDirty(
 
   return (
     lastSubmittedRequest.date !== nextValues.date ||
-    !areSameSelectedIds(lastSubmittedRequest.personIds, nextValues.selectedIds) ||
+    !areSameSelectedIds(
+      lastSubmittedRequest.personIds,
+      nextValues.selectedIds,
+    ) ||
     String(lastSubmittedRequest.durationMinutes) !== nextValues.duration ||
     String(lastSubmittedRequest.stepMinutes ?? 15) !== normalizedStep
   );
@@ -161,7 +165,8 @@ export function AvailabilityForm({
         <CardTitle>Find Availability</CardTitle>
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <CardDescription className="text-sm">
-            Choose a planning date, select participants, then set duration and step.
+            Choose a planning date, select participants, then set duration and
+            step.
           </CardDescription>
         </div>
       </CardHeader>
@@ -174,28 +179,80 @@ export function AvailabilityForm({
           }}
           className="space-y-6"
         >
-          <div className="space-y-2">
+          <div className="grid gap-4 xl:grid-cols-4">
             <div className="space-y-2">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                 <Label htmlFor="planning-date">Planning date</Label>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   Choose a seeded scheduling day
                 </span>
               </div>
-              <select
-                id="planning-date"
-                value={selectedDate}
-                onChange={(e) => onSelectedDateChange(e.target.value)}
-                className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex h-10 w-full rounded-md border px-3 py-2 text-sm shadow-xs focus-visible:ring-[3px] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {availableDates.map((date) => (
-                  <option key={date} value={date}>
-                    {formatPlanningDate(date)}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  id="planning-date"
+                  value={selectedDate}
+                  onChange={(e) => onSelectedDateChange(e.target.value)}
+                  className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex h-8 w-full appearance-none rounded-md border px-3 pr-10 text-sm shadow-xs focus-visible:ring-[3px] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {availableDates.map((date) => (
+                    <option key={date} value={date}>
+                      {formatPlanningDate(date)}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
             </div>
 
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <Label htmlFor="duration">Duration (minutes)</Label>
+                <span className="text-xs text-muted-foreground">
+                  Meeting length
+                </span>
+              </div>
+              <Input
+                id="duration"
+                type="number"
+                min={1}
+                step={1}
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                placeholder="60"
+              />
+              {durationError && (
+                <p className="text-sm text-red-500">{durationError}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <Label htmlFor="step">Step (minutes)</Label>
+                <span className="inline-flex items-center gap-1.5 text-xs leading-none text-muted-foreground">
+                  <span>Start-time interval</span>
+                  <FieldHelp
+                    details="Example: 15 checks 10:00, 10:15, 10:30 and so on."
+                    className="text-slate-500"
+                    detailsClassName="-left-2 top-6 w-64 translate-x-0"
+                  />
+                </span>
+              </div>
+              <Input
+                id="step"
+                type="number"
+                min={1}
+                step={1}
+                value={step}
+                onChange={(e) => setStep(e.target.value)}
+                placeholder="15"
+              />
+              {stepError && <p className="text-sm text-red-500">{stepError}</p>}
+            </div>
+
+            <div className="hidden xl:block" aria-hidden="true" />
+          </div>
+
+          <div className="space-y-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <Label>Participants</Label>
               <div className="flex items-center gap-1 self-start sm:self-auto">
@@ -232,49 +289,53 @@ export function AvailabilityForm({
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <span className="text-sm text-muted-foreground">
-                  Meeting length
-                </span>
-              </div>
-              <Input
-                id="duration"
-                type="number"
-                min={1}
-                step={1}
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                placeholder="60"
-              />
-              {durationError && (
-                <p className="text-sm text-red-500">{durationError}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5">
-                <Label htmlFor="step">Step (minutes)</Label>
-                <FieldHelp
-                  details="Start-time interval. Example: 15 checks 10:00, 10:15, 10:30 and so on."
-                  className="text-slate-500"
-                  detailsClassName="-left-2 top-6 w-64 translate-x-0"
+          {false && (
+            <div className="grid gap-4 md:grid-cols-2 lg:max-w-[50%]">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <Label htmlFor="duration">Duration (minutes)</Label>
+                  <span className="text-sm text-muted-foreground">
+                    Meeting length
+                  </span>
+                </div>
+                <Input
+                  id="duration"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  placeholder="60"
                 />
+                {durationError && (
+                  <p className="text-sm text-red-500">{durationError}</p>
+                )}
               </div>
-              <Input
-                id="step"
-                type="number"
-                min={1}
-                step={1}
-                value={step}
-                onChange={(e) => setStep(e.target.value)}
-                placeholder="15"
-              />
-              {stepError && <p className="text-sm text-red-500">{stepError}</p>}
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="step">Step (minutes)</Label>
+                  <FieldHelp
+                    details="Start-time interval. Example: 15 checks 10:00, 10:15, 10:30 and so on."
+                    className="text-slate-500"
+                    detailsClassName="-left-2 top-6 w-64 translate-x-0"
+                  />
+                </div>
+                <Input
+                  id="step"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={step}
+                  onChange={(e) => setStep(e.target.value)}
+                  placeholder="15"
+                />
+                {stepError && (
+                  <p className="text-sm text-red-500">{stepError}</p>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           <p className="text-xs text-muted-foreground">
             {selectedIds.length} participant
@@ -294,7 +355,6 @@ export function AvailabilityForm({
               </p>
             )}
           </div>
-
         </form>
       </CardContent>
     </Card>

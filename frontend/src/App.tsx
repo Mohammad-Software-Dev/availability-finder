@@ -37,6 +37,7 @@ function App() {
   const availabilityRequestIdRef = useRef(0);
   const availabilityAbortRef = useRef<AbortController | null>(null);
   const peopleAbortRef = useRef<AbortController | null>(null);
+  const resultsWorkspaceRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     async function loadInitialData() {
@@ -136,6 +137,16 @@ function App() {
 
       setAvailability(data);
       setAvailabilityStatus("success");
+      requestAnimationFrame(() => {
+        resultsWorkspaceRef.current?.scrollIntoView({
+          behavior:
+            typeof window !== "undefined" &&
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches
+              ? "auto"
+              : "smooth",
+          block: "start",
+        });
+      });
     } catch (err) {
       if (
         controller.signal.aborted ||
@@ -194,7 +205,7 @@ function App() {
       )}
 
       {hasParticipants && (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+        <div className="space-y-6">
           <AvailabilityForm
             availableDates={availableDates}
             people={people}
@@ -208,15 +219,28 @@ function App() {
             onSubmit={handleSubmit}
           />
 
-          <AvailabilityResults
-            data={availability}
-            status={availabilityStatus}
-            error={availabilityError}
-            isStale={availabilityIsStale}
-            selectedDate={selectedDate}
-            submittedDate={lastSubmittedRequest?.date ?? null}
-            onClear={handleClearResults}
-          />
+          <div
+            ref={resultsWorkspaceRef}
+            className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.88fr)] xl:items-start"
+          >
+            <ScheduleVisualization
+              people={selectedPeople}
+              availability={availability}
+              isStale={availabilityIsStale}
+            />
+
+            <div className="xl:sticky xl:top-6">
+              <AvailabilityResults
+                data={availability}
+                status={availabilityStatus}
+                error={availabilityError}
+                isStale={availabilityIsStale}
+                selectedDate={selectedDate}
+                submittedDate={lastSubmittedRequest?.date ?? null}
+                onClear={handleClearResults}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -224,14 +248,6 @@ function App() {
         <p className="text-sm text-muted-foreground">
           Updating participants and events for {formatPlanningDate(selectedDate)}.
         </p>
-      )}
-
-      {peopleStatus === "success" && selectedPeople.length > 0 && (
-        <ScheduleVisualization
-          people={selectedPeople}
-          availability={availability}
-          isStale={availabilityIsStale}
-        />
       )}
     </div>
   );

@@ -19,9 +19,9 @@ export function FieldHelp({
     : undefined;
 
   return (
-    <div
+    <span
       className={cn(
-        "flex items-center gap-1.5 text-sm text-muted-foreground",
+        "inline-flex shrink-0 items-center gap-1.5 leading-none text-muted-foreground align-baseline",
         className,
       )}
     >
@@ -48,6 +48,6 @@ export function FieldHelp({
           </span>
         </span>
       ) : null}
-    </div>
+    </span>
   );
 }

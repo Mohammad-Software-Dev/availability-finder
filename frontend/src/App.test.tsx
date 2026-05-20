@@ -81,7 +81,7 @@ describe("App request lifecycle", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("13:00 → 14:00")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Scheduling analysis" }),
+      screen.getByText("Scheduling Analysis"),
     ).toBeInTheDocument();
   });
 
@@ -108,7 +108,7 @@ describe("App request lifecycle", () => {
 
     expect(await screen.findByText("14:00 → 15:00")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Scheduling analysis" }),
+      screen.getByText("Scheduling Analysis"),
     ).toBeInTheDocument();
 
     await act(async () => {

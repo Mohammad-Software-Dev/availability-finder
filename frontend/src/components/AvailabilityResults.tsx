@@ -1,6 +1,12 @@
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { formatPlanningDate } from "@/lib/date";
 import type { AvailabilityResponse, ApiError, Status } from "@/types";
 
@@ -137,17 +143,24 @@ export function AvailabilityResults({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="text-xl">Available Time Slots</CardTitle>
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          onClick={onClear}
-          disabled={!canClear}
-        >
-          Clear results
-        </Button>
+      <CardHeader className="space-y-3">
+        <div className="flex flex-row items-center justify-between gap-2">
+          <CardTitle className="text-xl">Available Time Slots</CardTitle>
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={onClear}
+            disabled={!canClear}
+          >
+            Clear results
+          </Button>
+        </div>
+        <CardDescription className="text-sm">
+          Review the quick answer for the current selection, including the
+          active planning date, shared working window, matching slots, and any
+          data-quality warnings.
+        </CardDescription>
       </CardHeader>
       {status === "success" && data ? (
         content

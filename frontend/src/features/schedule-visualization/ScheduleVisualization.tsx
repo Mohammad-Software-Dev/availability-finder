@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FocusEvent, MouseEvent } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import type { AvailabilityResponse, PersonWithEvents } from "@/types";
 import { TimelineSvg } from "./TimelineSvg";
 import { TimelineTooltip } from "./TimelineTooltip";
@@ -32,12 +38,12 @@ export function ScheduleVisualization({
   const [containerHeight, setContainerHeight] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const summaryId = "schedule-visualization-summary";
-  const titleId = "schedule-visualization-title";
 
   const model = useMemo(
     () => buildVisualizationModel(people, availability, isStale),
     [availability, isStale, people],
   );
+  const hasSelection = people.length > 0;
 
   useEffect(() => {
     const node = containerRef.current;
@@ -79,22 +85,17 @@ export function ScheduleVisualization({
   }
 
   return (
-    <section aria-labelledby={titleId} aria-describedby={summaryId} className="space-y-3">
-      <div className="space-y-1">
-        <h3 id={titleId} className="text-base font-semibold">
-          Scheduling analysis
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Inspect working hours, busy intervals, overlap density, shared
-          availability, and suggested meeting slots for the current selection.
-        </p>
-      </div>
-
+    <section aria-describedby={summaryId}>
       <Card className="border-slate-200 bg-slate-50/60">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-700">
-            Schedule timeline
+          <CardTitle className="text-xl text-slate-900">
+            Scheduling Analysis
           </CardTitle>
+          <CardDescription className="text-sm">
+            Inspect working hours, busy intervals, overlap density, shared
+            availability, and suggested meeting slots for the current
+            selection.
+          </CardDescription>
           <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
             <span>Busy = solid blue</span>
             <span>Shared = violet highlight</span>
@@ -102,41 +103,59 @@ export function ScheduleVisualization({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!hasSelection && (
+            <div className="rounded-md border border-dashed border-slate-300 bg-white/80 px-4 py-6 text-sm text-muted-foreground">
+              Select at least one participant to open the scheduling analysis
+              workspace.
+            </div>
+          )}
+
+          {hasSelection && availability === null && !isStale && (
+            <div className="rounded-md border border-dashed border-slate-300 bg-white/80 px-4 py-3 text-sm text-muted-foreground">
+              Select participants and click Find Slots to highlight matching
+              availability in the timeline.
+            </div>
+          )}
+
           {isStale && (
             <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Result overlays are hidden until you refresh availability.
             </div>
           )}
 
-          <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
-            <p className="rounded-md bg-white/70 px-3 py-2">
-              {people.length} participant{people.length === 1 ? "" : "s"} visualized
-            </p>
-            <p className="rounded-md bg-white/70 px-3 py-2">
-              Visible day:{" "}
-              {`${String(Math.floor(model.domain.start / 60)).padStart(2, "0")}:${String(model.domain.start % 60).padStart(2, "0")} → ${String(Math.floor(model.domain.end / 60)).padStart(2, "0")}:${String(model.domain.end % 60).padStart(2, "0")}`}
-            </p>
-            <p className="rounded-md bg-white/70 px-3 py-2">
-              {model.slots.length} slot{model.slots.length === 1 ? "" : "s"} highlighted
-            </p>
-          </div>
+          {hasSelection && (
+            <>
+              <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
+                <p className="rounded-md bg-white/70 px-3 py-2">
+                  {people.length} participant{people.length === 1 ? "" : "s"} visualized
+                </p>
+                <p className="rounded-md bg-white/70 px-3 py-2">
+                  Visible day:{" "}
+                  {`${String(Math.floor(model.domain.start / 60)).padStart(2, "0")}:${String(model.domain.start % 60).padStart(2, "0")} → ${String(Math.floor(model.domain.end / 60)).padStart(2, "0")}:${String(model.domain.end % 60).padStart(2, "0")}`}
+                </p>
+                <p className="rounded-md bg-white/70 px-3 py-2">
+                  {model.slots.length} slot{model.slots.length === 1 ? "" : "s"} highlighted
+                </p>
+              </div>
 
-          <div
-            ref={containerRef}
-            className="relative w-full rounded-xl border border-slate-200/80 bg-white px-2 py-3 sm:px-4"
-          >
-            <TimelineSvg
-              width={width}
-              model={model}
-              onItemEnter={handleItemEnter}
-              onItemLeave={() => setTooltip(null)}
-            />
-            <TimelineTooltip
-              tooltip={tooltip}
-              containerWidth={width}
-              containerHeight={Math.max(containerHeight, 320)}
-            />
-          </div>
+              <div
+                ref={containerRef}
+                className="relative w-full rounded-xl border border-slate-200/80 bg-white px-2 py-3 sm:px-4"
+              >
+                <TimelineSvg
+                  width={width}
+                  model={model}
+                  onItemEnter={handleItemEnter}
+                  onItemLeave={() => setTooltip(null)}
+                />
+                <TimelineTooltip
+                  tooltip={tooltip}
+                  containerWidth={width}
+                  containerHeight={Math.max(containerHeight, 320)}
+                />
+              </div>
+            </>
+          )}
 
           <p id={summaryId} className="sr-only">
             {model.srSummary}
