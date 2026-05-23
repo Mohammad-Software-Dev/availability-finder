@@ -1,10 +1,11 @@
 import {
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
-  type RefObject,
 } from "react";
 import type {
   ApiError,
@@ -19,6 +20,157 @@ import {
   fetchPeople,
 } from "@/services/api";
 
+function cloneVisualizationPeople(
+  people: PersonWithEvents[],
+  personIds: string[],
+): PersonWithEvents[] {
+  return people
+    .filter((person) => personIds.includes(person.id))
+    .map((person) => ({
+      ...person,
+      workingHours: { ...person.workingHours },
+      events: person.events.map((event) => ({ ...event })),
+    }));
+}
+
+function pruneSelectedIds(
+  selectedIds: string[],
+  people: PersonWithEvents[],
+): string[] {
+  return selectedIds.filter((id) => people.some((person) => person.id === id));
+}
+
+async function loadAvailablePlanningDates(
+  controller: AbortController,
+  actions: {
+    setPeopleStatus: (status: Status) => void;
+    setPeopleError: (error: ApiError | null) => void;
+    setAvailableDates: (dates: string[]) => void;
+    setSelectedDate: (date: string) => void;
+    setPeople: (people: PersonWithEvents[]) => void;
+    setSelectedIds: (ids: string[]) => void;
+  },
+) {
+  const {
+    setPeopleStatus,
+    setPeopleError,
+    setAvailableDates,
+    setSelectedDate,
+    setPeople,
+    setSelectedIds,
+  } = actions;
+
+  setPeopleStatus("loading");
+  setPeopleError(null);
+
+  try {
+    const dates = await fetchAvailableDates({ signal: controller.signal });
+
+    if (controller.signal.aborted) {
+      return;
+    }
+
+    setAvailableDates(dates);
+
+    if (dates.length === 0) {
+      setSelectedDate("");
+      setPeople([]);
+      setSelectedIds([]);
+      setPeopleStatus("success");
+      return;
+    }
+
+    setSelectedDate(dates[0]);
+  } catch (err) {
+    if (controller.signal.aborted) {
+      return;
+    }
+
+    setPeopleStatus("error");
+    setPeopleError(err as ApiError);
+  }
+}
+
+async function loadPeopleForDate(
+  selectedDate: string,
+  controller: AbortController,
+  actions: {
+    setPeopleStatus: Dispatch<SetStateAction<Status>>;
+    setPeopleError: (error: ApiError | null) => void;
+    setPeople: (people: PersonWithEvents[]) => void;
+    setSelectedIds: Dispatch<SetStateAction<string[]>>;
+  },
+) {
+  const { setPeopleStatus, setPeopleError, setPeople, setSelectedIds } = actions;
+
+  setPeopleStatus((current) => (current === "idle" ? "loading" : current));
+  setPeopleError(null);
+
+  try {
+    const data = await fetchPeople(selectedDate, { signal: controller.signal });
+
+    if (controller.signal.aborted) {
+      return;
+    }
+
+    setPeople(data);
+    setSelectedIds((current) => pruneSelectedIds(current, data));
+    setPeopleStatus("success");
+  } catch (err) {
+    if (controller.signal.aborted) {
+      return;
+    }
+
+    setPeopleStatus("error");
+    setPeopleError(err as ApiError);
+  }
+}
+
+async function submitAvailabilityRequest(
+  payload: AvailabilityRequest,
+  people: PersonWithEvents[],
+  requestId: number,
+  controller: AbortController,
+  availabilityRequestIdRef: RefObject<number>,
+  actions: {
+    setAvailability: (availability: AvailabilityResponse | null) => void;
+    setVisualizationPeople: (people: PersonWithEvents[]) => void;
+    setAvailabilityStatus: (status: Status) => void;
+    setAvailabilityError: (error: ApiError | null) => void;
+  },
+) {
+  const {
+    setAvailability,
+    setVisualizationPeople,
+    setAvailabilityStatus,
+    setAvailabilityError,
+  } = actions;
+
+  try {
+    const data = await fetchAvailability(payload, {
+      signal: controller.signal,
+    });
+
+    if (requestId !== availabilityRequestIdRef.current) {
+      return;
+    }
+
+    setAvailability(data);
+    setVisualizationPeople(cloneVisualizationPeople(people, payload.personIds));
+    setAvailabilityStatus("success");
+  } catch (err) {
+    if (
+      controller.signal.aborted ||
+      requestId !== availabilityRequestIdRef.current
+    ) {
+      return;
+    }
+
+    setAvailabilityStatus("error");
+    setAvailabilityError(err as ApiError);
+  }
+}
+
 type AvailabilityPlannerState = {
   availableDates: string[];
   selectedDate: string;
@@ -26,7 +178,6 @@ type AvailabilityPlannerState = {
   peopleStatus: Status;
   peopleError: ApiError | null;
   selectedIds: string[];
-  selectedPeople: PersonWithEvents[];
   visualizationPeople: PersonWithEvents[];
   availability: AvailabilityResponse | null;
   availabilityStatus: Status;
@@ -34,31 +185,12 @@ type AvailabilityPlannerState = {
   lastSubmittedRequest: AvailabilityRequest | null;
   availabilityIsStale: boolean;
   hasParticipants: boolean;
-  resultsWorkspaceRef: RefObject<HTMLDivElement | null>;
   setSelectedDate: (date: string) => void;
   setSelectedIds: (ids: string[]) => void;
   handleDirtyChange: (isDirty: boolean) => void;
   handleSubmit: (payload: AvailabilityRequest) => Promise<void>;
   handleClearResults: () => void;
 };
-
-const AUTO_SCROLL_BLOCK: ScrollLogicalPosition = "start";
-
-function scrollResultsWorkspaceIntoView(element: HTMLDivElement | null) {
-  if (!element) {
-    return;
-  }
-
-  const prefersReducedMotion =
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  element.scrollIntoView({
-    behavior: prefersReducedMotion ? "auto" : "smooth",
-    block: AUTO_SCROLL_BLOCK,
-  });
-}
 
 export function useAvailabilityPlanner(): AvailabilityPlannerState {
   const [availableDates, setAvailableDates] = useState<string[]>([]);
@@ -85,49 +217,23 @@ export function useAvailabilityPlanner(): AvailabilityPlannerState {
   const peopleAbortRef = useRef<AbortController | null>(null);
   const availabilityAbortRef = useRef<AbortController | null>(null);
   const availabilityRequestIdRef = useRef(0);
-  const resultsWorkspaceRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
     datesAbortRef.current = controller;
 
-    async function loadAvailablePlanningDates() {
-      setPeopleStatus("loading");
-      setPeopleError(null);
-
-      try {
-        const dates = await fetchAvailableDates({ signal: controller.signal });
-
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setAvailableDates(dates);
-
-        if (dates.length === 0) {
-          setSelectedDate("");
-          setPeople([]);
-          setSelectedIds([]);
-          setPeopleStatus("success");
-          return;
-        }
-
-        setSelectedDate(dates[0]);
-      } catch (err) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setPeopleStatus("error");
-        setPeopleError(err as ApiError);
-      } finally {
-        if (datesAbortRef.current === controller) {
-          datesAbortRef.current = null;
-        }
+    loadAvailablePlanningDates(controller, {
+      setPeopleStatus,
+      setPeopleError,
+      setAvailableDates,
+      setSelectedDate,
+      setPeople,
+      setSelectedIds,
+    }).finally(() => {
+      if (datesAbortRef.current === controller) {
+        datesAbortRef.current = null;
       }
-    }
-
-    loadAvailablePlanningDates();
+    });
 
     return () => controller.abort();
   }, []);
@@ -149,37 +255,16 @@ export function useAvailabilityPlanner(): AvailabilityPlannerState {
     const controller = new AbortController();
     peopleAbortRef.current = controller;
 
-    async function loadPeopleForDate() {
-      setPeopleStatus((current) => (current === "idle" ? "loading" : current));
-      setPeopleError(null);
-
-      try {
-        const data = await fetchPeople(selectedDate, { signal: controller.signal });
-
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setPeople(data);
-        setSelectedIds((current) =>
-          current.filter((id) => data.some((person) => person.id === id)),
-        );
-        setPeopleStatus("success");
-      } catch (err) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setPeopleStatus("error");
-        setPeopleError(err as ApiError);
-      } finally {
-        if (peopleAbortRef.current === controller) {
-          peopleAbortRef.current = null;
-        }
+    loadPeopleForDate(selectedDate, controller, {
+      setPeopleStatus,
+      setPeopleError,
+      setPeople,
+      setSelectedIds,
+    }).finally(() => {
+      if (peopleAbortRef.current === controller) {
+        peopleAbortRef.current = null;
       }
-    }
-
-    loadPeopleForDate();
+    });
   }, [selectedDate]);
 
   const handleDirtyChange = useCallback((isDirty: boolean) => {
@@ -199,39 +284,19 @@ export function useAvailabilityPlanner(): AvailabilityPlannerState {
     setLastSubmittedRequest(payload);
 
     try {
-      const data = await fetchAvailability(payload, {
-        signal: controller.signal,
-      });
-
-      if (requestId !== availabilityRequestIdRef.current) {
-        return;
-      }
-
-      setAvailability(data);
-      setVisualizationPeople(
-        people
-          .filter((person) => payload.personIds.includes(person.id))
-          .map((person) => ({
-            ...person,
-            workingHours: { ...person.workingHours },
-            events: person.events.map((event) => ({ ...event })),
-          })),
+      await submitAvailabilityRequest(
+        payload,
+        people,
+        requestId,
+        controller,
+        availabilityRequestIdRef,
+        {
+          setAvailability,
+          setVisualizationPeople,
+          setAvailabilityStatus,
+          setAvailabilityError,
+        },
       );
-      setAvailabilityStatus("success");
-
-      requestAnimationFrame(() => {
-        scrollResultsWorkspaceIntoView(resultsWorkspaceRef.current);
-      });
-    } catch (err) {
-      if (
-        controller.signal.aborted ||
-        requestId !== availabilityRequestIdRef.current
-      ) {
-        return;
-      }
-
-      setAvailabilityStatus("error");
-      setAvailabilityError(err as ApiError);
     } finally {
       if (requestId === availabilityRequestIdRef.current) {
         availabilityAbortRef.current = null;
@@ -251,10 +316,6 @@ export function useAvailabilityPlanner(): AvailabilityPlannerState {
     setAvailabilityIsStale(false);
   }, []);
 
-  const selectedPeople = useMemo(
-    () => people.filter((person) => selectedIds.includes(person.id)),
-    [people, selectedIds],
-  );
   const hasParticipants = people.length > 0 && selectedDate !== "";
 
   return {
@@ -264,7 +325,6 @@ export function useAvailabilityPlanner(): AvailabilityPlannerState {
     peopleStatus,
     peopleError,
     selectedIds,
-    selectedPeople,
     visualizationPeople,
     availability,
     availabilityStatus,
@@ -272,7 +332,6 @@ export function useAvailabilityPlanner(): AvailabilityPlannerState {
     lastSubmittedRequest,
     availabilityIsStale,
     hasParticipants,
-    resultsWorkspaceRef,
     setSelectedDate,
     setSelectedIds,
     handleDirtyChange,

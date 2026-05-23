@@ -65,7 +65,7 @@ describe("AvailabilityForm", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        "Choose a planning date, select participants, then set duration and step.",
+        "Define the planning date, meeting length, and start-time interval, then choose the participants you want to coordinate.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Planning date")).toBeInTheDocument();

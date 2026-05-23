@@ -59,7 +59,6 @@ describe("ScheduleVisualization", () => {
     render(
       <ScheduleVisualization
         people={people}
-        selectedCount={people.length}
         availability={availability}
         isStale={false}
       />,
@@ -86,7 +85,6 @@ describe("ScheduleVisualization", () => {
     render(
       <ScheduleVisualization
         people={people}
-        selectedCount={people.length}
         availability={availability}
         isStale={false}
       />,
@@ -111,7 +109,6 @@ describe("ScheduleVisualization", () => {
     render(
       <ScheduleVisualization
         people={people}
-        selectedCount={people.length}
         availability={availability}
         isStale={true}
       />,

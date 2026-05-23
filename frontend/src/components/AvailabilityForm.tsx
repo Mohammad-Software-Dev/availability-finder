@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { formatPlanningDate } from "@/lib/date";
 import type { AvailabilityRequest, PersonWithEvents, Status } from "@/types";
 import { FieldHelp } from "./FieldHelp";
@@ -196,11 +196,13 @@ export function AvailabilityForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Find Availability</CardTitle>
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <CardDescription className="text-sm">
-            Choose a planning date, select participants, then set duration and
-            step.
+        <div className="space-y-1">
+          <h2 className="font-heading text-xl leading-snug font-medium">
+            Find Availability
+          </h2>
+          <CardDescription className="max-w-2xl text-sm leading-6">
+            Define the planning date, meeting length, and start-time interval,
+            then choose the participants you want to coordinate.
           </CardDescription>
         </div>
       </CardHeader>
@@ -213,12 +215,12 @@ export function AvailabilityForm({
           }}
           className="space-y-6"
         >
-          <div className="grid gap-4 xl:grid-cols-4">
+          <div className="grid gap-4 xl:grid-cols-3">
             <div className="space-y-2">
               <ControlHeader
                 htmlFor="planning-date"
                 label="Planning date"
-                helper="Choose a seeded scheduling day"
+                helper="Choose a scheduling day"
               />
               <div className="relative">
                 <select
@@ -263,7 +265,7 @@ export function AvailabilityForm({
                 label="Step (minutes)"
                 helper="Start-time interval"
                 details="Example: 15 checks 10:00, 10:15, 10:30 and so on."
-                detailsClassName="-left-2 top-6 w-64 translate-x-0"
+                detailsClassName="-left-50 top-6 w-64 translate-x-0"
               />
               <Input
                 id="step"
@@ -276,8 +278,6 @@ export function AvailabilityForm({
               />
               {stepError && <p className="text-sm text-red-500">{stepError}</p>}
             </div>
-
-            <div className="hidden xl:block" aria-hidden="true" />
           </div>
 
           <div className="space-y-2">

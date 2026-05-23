@@ -17,12 +17,12 @@ import { buildVisualizationModel } from "./utils";
 
 type Props = {
   people: PersonWithEvents[];
-  selectedCount: number;
   availability: AvailabilityResponse | null;
   isStale: boolean;
 };
 
 const DEFAULT_WIDTH = 980;
+const MOBILE_MIN_CHART_WIDTH = 760;
 
 function getTooltipCopy(item: TimelineInterval): string {
   return item.ariaLabel;
@@ -30,12 +30,11 @@ function getTooltipCopy(item: TimelineInterval): string {
 
 export function ScheduleVisualization({
   people,
-  selectedCount,
   availability,
   isStale,
 }: Props) {
   const [tooltip, setTooltip] = useState<TimelineTooltipData | null>(null);
-  const [width, setWidth] = useState(DEFAULT_WIDTH);
+  const [viewportWidth, setViewportWidth] = useState(DEFAULT_WIDTH);
   const [containerHeight, setContainerHeight] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const titleId = useId();
@@ -46,14 +45,18 @@ export function ScheduleVisualization({
     [availability, isStale, people],
   );
   const hasSubmittedVisualization = people.length > 0 && availability !== null;
-  const hasPendingSelection = selectedCount > 0;
+  const chartWidth =
+    viewportWidth < MOBILE_MIN_CHART_WIDTH
+      ? MOBILE_MIN_CHART_WIDTH
+      : viewportWidth;
+  const isScrollableOnMobile = chartWidth > viewportWidth;
 
   useEffect(() => {
     const node = containerRef.current;
     if (!node) return;
 
     function updateWidth(nextWidth: number) {
-      setWidth(Math.max(Math.round(nextWidth), 320));
+      setViewportWidth(Math.max(Math.round(nextWidth), 320));
     }
 
     updateWidth(node.clientWidth || DEFAULT_WIDTH);
@@ -101,20 +104,6 @@ export function ScheduleVisualization({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!hasPendingSelection && (
-            <div className="rounded-md border border-dashed border-slate-300 bg-white/80 px-4 py-6 text-sm text-muted-foreground">
-              Select at least one participant to open the scheduling analysis
-              workspace.
-            </div>
-          )}
-
-          {hasPendingSelection && availability === null && !isStale && (
-            <div className="rounded-md border border-dashed border-slate-300 bg-white/80 px-4 py-3 text-sm text-muted-foreground">
-              Select participants and click Find Slots to highlight matching
-              availability in the timeline.
-            </div>
-          )}
-
           {isStale && hasSubmittedVisualization && (
             <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Result overlays are hidden until you refresh availability.
@@ -140,15 +129,24 @@ export function ScheduleVisualization({
                 ref={containerRef}
                 className="relative w-full rounded-xl border border-slate-200/80 bg-white px-2 py-3 sm:px-4"
               >
-                <TimelineSvg
-                  width={width}
-                  model={model}
-                  onItemEnter={handleItemEnter}
-                  onItemLeave={() => setTooltip(null)}
-                />
+                {isScrollableOnMobile && (
+                  <p className="mb-2 text-xs text-slate-600 sm:hidden">
+                    Swipe horizontally to explore the full timeline.
+                  </p>
+                )}
+                <div className="-mx-2 overflow-x-auto px-2 sm:mx-0 sm:px-0">
+                  <div style={{ width: chartWidth }}>
+                    <TimelineSvg
+                      width={chartWidth}
+                      model={model}
+                      onItemEnter={handleItemEnter}
+                      onItemLeave={() => setTooltip(null)}
+                    />
+                  </div>
+                </div>
                 <TimelineTooltip
                   tooltip={tooltip}
-                  containerWidth={width}
+                  containerWidth={viewportWidth}
                   containerHeight={Math.max(containerHeight, 320)}
                 />
                 <div className="border-t border-slate-200/80 pt-2">

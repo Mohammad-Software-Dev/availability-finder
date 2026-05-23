@@ -58,7 +58,7 @@ export function findFreeWindows(
 export function generateSlots(
   freeWindows: Interval[],
   durationMinutes: number,
-  stepMinutes = 15,
+  stepMinutes: number,
 ): Interval[] {
   const slots: Interval[] = [];
 

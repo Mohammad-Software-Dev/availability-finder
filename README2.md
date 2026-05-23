@@ -1,15 +1,45 @@
 # Availability Finder
 
-Availability Finder is a small full-stack TypeScript application for finding shared meeting slots across messy participant calendars. It lets a user inspect participant events, choose a planning date and meeting settings, compute overlapping availability, and visually analyze why slots do or do not exist.
+Availability Finder is a full-stack TypeScript scheduling application for identifying shared meeting availability across messy participant calendars. It combines an interval-based backend scheduling engine with a date-aware React workspace that helps users both compute valid meeting times and understand why those times exist.
+
+The current product is intentionally narrow in scope, but it is structured like a real scheduling system rather than a single algorithm demo. A user can choose a planning date, select attendees, configure meeting duration and step size, review matching slots, inspect warnings caused by invalid or unusable calendar data, and open a custom SVG-based timeline that explains the result visually.
 
 Created by **Mohammad Ahmad**, FullStack Software Engineer.
 
 ## Overview
 
 - Full stack: Express backend + React frontend
-- Purpose: compute shared meeting availability from messy calendar data
-- Current scope: date-aware scheduling with in-memory seed data
-- Product framing: a lightweight scheduling and availability analysis system
+- Language: TypeScript across the stack
+- Product goal: compute and explain shared meeting availability from imperfect calendar data
+- Current scope: single-day, date-aware scheduling with in-memory seed data
+- UX model: explicit submit flow with stale-result handling and a dedicated visual analysis surface
+
+## Key Capabilities
+
+- planning-date selection across multiple seeded dates
+- participant selection with bulk actions
+- interval-based availability computation
+- invalid-event detection and warning surfacing
+- shared working-window calculation
+- generated meeting-slot output using duration and step controls
+- custom SVG scheduling visualization
+- date-aware results summary and chart navigation
+- responsive behavior, including a mobile-safe chart fallback
+
+## Product Experience
+
+The application is organized as a scheduling workspace with three distinct responsibilities:
+
+- **Meeting setup**
+  The left-side top card contains the planning controls: date, duration, step, and participant selection.
+
+- **Quick answer**
+  The right-side top card presents the textual result for the current submitted request: planning date, common working window, slot list, and warnings.
+
+- **Visual explanation**
+  A full-width scheduling analysis panel appears once results exist. It renders a custom SVG timeline that explains attendee constraints, overlap, and generated slots.
+
+This separation is deliberate. The top cards answer “what can I schedule?”, while the analysis panel answers “why are these the available options?”
 
 ## How to Run
 
@@ -25,7 +55,7 @@ Start both apps:
 npm run dev
 ```
 
-Run checks:
+Run the full verification suite:
 
 ```bash
 npm run build
@@ -34,72 +64,49 @@ npm run test
 npm run typecheck
 ```
 
-Automated testing is included for both backend logic and frontend component behavior.
-
 Default local URLs:
 
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:4000`
 
-## What Changed Since `docs: finalize README and project presentation`
+## Tech Stack
 
-The project has grown in two major directions since the last README-focused submission:
+### Backend
 
-### 1. Custom scheduling visualization system
+- `Express 5` for HTTP routing
+- `Zod` for schema validation
+- `Vitest` for unit and integration tests
 
-A dedicated frontend visualization layer was added using custom SVG rendering instead of a calendar or charting library.
+### Frontend
 
-It now includes:
+- `React 19`
+- `Vite`
+- `Tailwind CSS 4`
+- `shadcn/ui`-style primitives plus Radix-based UI patterns
+- `Vitest` and `Testing Library` for component and workflow tests
+- `lucide-react` for UI icons
 
-- a full-width scheduling analysis panel below the form/results layout
-- a horizontal time-based timeline
-- per-participant rows
-- working-hours visualization
-- busy-interval rendering
-- shared working-window overlays
-- generated meeting-slot overlays
-- availability density / overlap band
-- responsive axis behavior
-- keyboard-focusable intervals and slots
-- accessible tooltip and screen-reader summaries
-
-This moved the project from a simple “meeting slot calculator” toward a more frontend-heavy scheduling analysis tool.
-
-### 2. Date-aware planning
-
-The original one-day-only scheduling scope was evolved into date-aware planning while still keeping the application intentionally small and in-memory.
-
-New additions include:
-
-- multiple seeded planning dates
-- explicit planning-date selection in the frontend
-- date-scoped participant/event loading
-- date-scoped availability computation
-- stale-result handling when the selected date changes
-- date-aware results summaries and empty states
-
-The app still operates on one selected day at a time, but it now feels more like a real scheduling product instead of a fixed single-day demo.
-
-## Scheduling Algorithm
+## Scheduling Model
 
 The backend models scheduling as an interval problem.
 
 Each participant contributes:
 
-- a working window
-- a set of busy intervals derived from their events for the selected date
+- a working-hours window
+- a set of calendar events for the selected planning date
 
-The algorithm pipeline is:
+The scheduling pipeline is:
 
 1. Validate the request payload
-2. Resolve the selected planning date
-3. Normalize each participant's availability
-4. Reject invalid events with warnings
-5. Clip valid events to working hours
-6. Merge overlapping or touching busy intervals
-7. Intersect participant working windows into one shared working window
-8. Subtract merged busy time from that shared window
-9. Generate meeting slots using the requested duration and step
+2. Validate the selected planning date
+3. Load the selected participants for that date
+4. Normalize each participant’s schedule
+5. Reject invalid events with warnings
+6. Clip valid events to working hours
+7. Merge overlapping or touching busy intervals
+8. Intersect participant working windows into a shared working window
+9. Subtract merged busy time from that shared window
+10. Generate meeting slots using the requested duration and step
 
 At a high level:
 
@@ -113,7 +120,7 @@ If each participant working window is `W_i`, then the shared working range is:
 W = intersection(W_1, W_2, ... W_n)
 ```
 
-Complexity is dominated by sorting and merging intervals, so in practice the current implementation behaves like:
+In practice, complexity is dominated by sorting and merging intervals:
 
 ```text
 O(N log N + S)
@@ -121,48 +128,52 @@ O(N log N + S)
 
 Where:
 
-- `N` = total number of calendar events considered for the selected date
+- `N` = total number of events considered for the selected day
 - `S` = number of generated candidate slots
 
-The backend scheduling flow is designed so availability can be recalculated deterministically as participants, dates, or meeting settings change. In this project, that recalculation is still intentionally controlled by an explicit submit flow rather than happening on every interaction. The frontend therefore uses `Find Slots` instead of live recalculation.
+## Product and UX Decisions
 
-## Approach and Design Thinking
+### Explicit submit instead of live recomputation
 
-I approached this as an end-to-end scheduling problem rather than as a UI-only exercise.
+The app intentionally uses a `Find Slots` button instead of recalculating on every interaction. This keeps the request lifecycle predictable and preserves a clear boundary between:
 
-At its core, the project is an interval-based scheduling system: each participant contributes constraints through working hours and calendar events, and the goal is to derive valid meeting slots by combining those constraints in a predictable way.
+- current form state
+- last submitted request
+- last returned result
 
-The implementation follows a transformation pipeline:
+That distinction becomes especially important once planning dates, warnings, visualization state, and stale results are all present in the same workflow.
 
-- normalize inputs
-- merge overlapping busy intervals
-- intersect working hours across participants
-- subtract busy time from the shared window
-- generate candidate meeting slots
+### Stale-result handling
 
-This separation keeps the backend logic deterministic, testable, and easier to extend.
+After a successful search, changing participants, date, duration, or step marks the current result as stale. The previous response remains visible until the user submits again, but the UI clearly communicates that the result no longer reflects the live input state.
 
-From a product perspective, I treated the API as the source of truth and kept the frontend focused on state, UX clarity, and rendering. The goal was not only to compute availability, but also to make the constraints, data-quality issues, and resulting slots understandable to the user.
+This is a trust decision as much as a technical one: the system should not quietly pretend an old result still belongs to a new configuration.
 
-The later additions to the project followed that same idea:
+### Results-first visualization
 
-- date-aware planning made the product more realistic
-- the SVG timeline made scheduling logic visually inspectable
-- stale-result handling kept request/response trust explicit
+The scheduling analysis panel is intentionally tied to submitted backend results rather than live client-side inference. The frontend does not render speculative chart output just because participants are selected.
 
-Overall, the design prioritizes correctness first, then clarity, then extensibility.
+Instead:
 
-## Backend and Frontend
+- the analysis panel appears only after a successful availability response exists
+- the chart uses the last submitted participant snapshot plus the backend response
+- the results card includes a `View Scheduling Analysis` action to navigate to the visual explanation intentionally
 
-### Backend
+This keeps the backend as the source of truth for the scheduling answer and avoids blurring the line between configuration state and computed state.
 
-The backend now exposes three endpoints:
+## API
+
+The backend exposes three endpoints:
 
 - `GET /api/people/dates`
 - `GET /api/people?date=YYYY-MM-DD`
 - `POST /api/availability`
 
-`GET /api/people/dates` returns the available seeded planning dates:
+### `GET /api/people/dates`
+
+Returns the available seeded planning dates.
+
+Example:
 
 ```json
 {
@@ -170,14 +181,16 @@ The backend now exposes three endpoints:
 }
 ```
 
-`GET /api/people?date=YYYY-MM-DD` returns participants with:
+### `GET /api/people?date=YYYY-MM-DD`
+
+Returns participants for the selected date with:
 
 - identity
 - working hours
-- display-ready event data for the selected date
-- event validity metadata for UI presentation
+- event data prepared for UI display
+- validity metadata for each event
 
-Example response:
+Example:
 
 ```json
 [
@@ -202,7 +215,9 @@ Example response:
 ]
 ```
 
-`POST /api/availability` accepts:
+### `POST /api/availability`
+
+Accepts:
 
 ```json
 {
@@ -213,7 +228,7 @@ Example response:
 }
 ```
 
-And returns:
+Returns:
 
 ```json
 {
@@ -233,119 +248,71 @@ And returns:
 }
 ```
 
-Backend responsibilities include:
+## Frontend Behavior
 
-- validating request shape
-- validating the selected planning date
-- parsing and validating time strings
-- classifying invalid events
-- clipping and merging busy intervals
-- computing shared availability for one selected day
-- returning warnings without breaking the full scheduling flow
+The frontend is intentionally explicit and stateful rather than aggressively automatic.
 
-### Frontend
+Current behavior includes:
 
-The frontend is still intentionally explicit, but it is now more product-like and more visualization-led.
-
-It provides:
-
-- planning-date selection
-- participant selection with `Select all` / `Clear all`
-- visible event chips next to each participant
-- meeting duration and step inputs
-- explicit submit through `Find Slots`
-- textual results, warnings, and stale-result handling
-- a full-width SVG-based scheduling analysis panel
-
-Current frontend behavior:
-
-- participant event chips refresh immediately when the selected date changes
-- computed results do not auto-refresh when participants, date, or meeting settings change
-- after a successful search, changing inputs marks results as stale
-- changing the planning date keeps previous results visible but clearly marks them as belonging to the previously submitted date
-- `Clear results` resets the results panel
+- participant event chips update immediately when the planning date changes
+- results do not recompute automatically when form inputs change
+- stale state is tracked once a successful result exists
+- clearing results resets the summary card and hides the analysis panel
+- the visualization is opened via a dedicated CTA from the summary card
+- mobile users can horizontally scroll the chart when the timeline cannot be compressed further without losing readability
 
 ## Visualization System
 
-One of the major additions after the README-focused submission was a dedicated visualization subsystem under `frontend/src/features/schedule-visualization`.
+The visualization layer lives under `frontend/src/features/schedule-visualization` and is built with custom SVG rendering rather than a third-party calendar or charting library.
 
-This layer is intentionally built with custom SVG rendering instead of FullCalendar or a heavy charting library.
+Core components include:
 
-It includes:
+- `ScheduleVisualization`
+- `TimelineSvg`
+- `TimelineAxis`
+- `TimelineGrid`
+- `TimelineDensityBand`
+- `TimelineRow`
+- `TimelineTooltip`
+- model and coordinate utilities
 
-- `ScheduleVisualization` as the main orchestration component
-- `TimelineSvg` for composition and layout
-- `TimelineAxis` for the hourly timeline
-- `TimelineGrid` for interval guides
-- `TimelineDensityBand` for overlap density
-- `TimelineRow` for per-participant schedule rendering
-- `TimelineTooltip` for hover/focus explanations
-- a visualization model adapter and interval/coordinate utilities
+The chart currently exposes:
 
-The timeline exposes:
+- participant working-hours ranges
+- busy intervals
+- a shared working-window overlay
+- generated available slots
+- an availability-overlap density band
 
-- participant working-day context
-- busy intervals for each selected person
-- common/shared working window
-- generated available meeting slots
-- availability overlap density
+The visualization is intentionally driven through a dedicated frontend model adapter rather than rendering directly from raw API shapes. This keeps the chart deterministic, composable, and easier to evolve.
 
-The visualization is intentionally separated from raw backend data through a dedicated frontend model adapter. That keeps the SVG rendering logic reusable, deterministic, and easier to evolve.
+### Mobile strategy
+
+The scheduling chart is denser than the rest of the UI and does not compress cleanly to narrow widths. Instead of shrinking it until it becomes unreadable, the mobile behavior is:
+
+- keep the surrounding cards responsive
+- preserve readable chart dimensions
+- enable horizontal scrolling when the chart width exceeds the viewport
+- show a lightweight cue that the timeline can be explored horizontally
+
+This is a deliberate tradeoff in favor of preserving the integrity of a dense analytical visualization.
 
 ## Accessibility
 
-Accessibility became more important once the visualization layer was introduced.
+Accessibility is treated as part of the implementation, not as a later patch.
 
-The current app includes:
+The app currently includes:
 
-- focusable slot and interval targets in the timeline
-- accessible labels such as “Alice Johnson busy from 10:00 to 10:30”
+- semantic section headings across the main workspace
+- explicit labels and helper text for form controls
 - screen-reader summary text for the visualization
-- keyboard-usable form interactions
-- tooltip behavior that aligns with the rest of the UI
-- multiple visual cues for state instead of relying on a single signal
+- accessible legends and readable chart labels
+- keyboard-usable controls across the form and results surfaces
+- multiple visual signals rather than relying on color alone
 
-This is not a full accessibility audit, but it was implemented intentionally rather than left as a future concern.
+This is not a full accessibility audit, but the design and implementation were shaped with accessibility in mind.
 
-## Covered Scenarios
-
-- finds shared meeting slots across multiple selected participants
-- filters people/event data by the selected planning date
-- returns no slots when the requested duration does not fit inside the shared free time
-- ignores invalid event data without failing the full availability request
-- ignores events that fall outside a participant's working hours
-- rejects availability requests that include unknown participant IDs
-- rejects unsupported or malformed planning dates
-- shows participant-specific warnings when event data is skipped
-- marks previous results as stale after the user changes participants, planning date, or meeting settings
-- supports bulk participant actions through `Select all` and `Clear all`
-- visually explains overlap and suggested slots through the scheduling analysis panel
-
-## Assumptions and Future Improvements
-
-Current assumptions and scope limits:
-
-- one selected day at a time
-- in-memory seed data only
-- no recurring events
-- all participants are currently assumed to be in the same timezone
-- no persisted user data
-- explicit submit instead of live recalculation
-- all selected attendees are required attendees
-
-Future improvements and extensions:
-
-- slot ranking and recommendation instead of a flat list only
-- required vs optional attendees
-- participant-specific timezone support
-- recurring event support
-- persistent database-backed data
-- richer structured warnings instead of plain strings
-- GraphQL as a query layer if the data surface grows significantly
-- SSO / organization-aware access if the product becomes multi-tenant
-- more advanced UI such as calendar comparisons, meeting templates, or saved searches
-
-## Deeper Dive
+## Architecture
 
 ### Backend structure
 
@@ -359,14 +326,17 @@ backend/src/
   shared/
     errors/       app error model and centralized error handler
     types/        shared interval types
-    utils/        time and interval helpers
+    utils/        time helpers, interval helpers, planning-date and schedule normalization utilities
 ```
 
-Primary backend libraries:
+Key backend responsibilities:
 
-- `express` for HTTP routing
-- `zod` for request and environment validation
-- `vitest` for unit tests
+- request validation
+- date validation
+- person and event loading
+- event normalization
+- warning generation
+- shared availability calculation
 
 ### Frontend structure
 
@@ -376,31 +346,97 @@ frontend/src/
   features/
     schedule-visualization/
                   SVG timeline system, model adapter, tests
+  hooks/         planner-state orchestration
   lib/           formatting helpers
   services/      API client functions
   test/          test setup
   types/         shared frontend API/data types
 ```
 
-Primary frontend libraries:
+Key frontend responsibilities:
 
-- `react` for UI rendering and state
-- `vite` for development/build tooling
-- `tailwindcss` for styling and responsive layout
-- `shadcn` component patterns plus Radix-based primitives for reusable UI building blocks
-- `@testing-library/react` and `vitest` for component tests
-- `lucide-react` for lightweight icons
+- planning UI and validation
+- participant selection workflow
+- stale-result lifecycle
+- API orchestration
+- visualization rendering
+- responsive layout behavior
 
-### Library usage in practice
+### Internal design choices
 
-- The backend keeps business logic separate from controllers so the scheduling algorithm can be tested directly.
-- The frontend keeps API calls in a small service layer and treats the form/results/visualization components as view-layer orchestration.
-- The visualization layer uses custom SVG primitives and a frontend view-model adapter instead of relying on a heavy chart or calendar library.
-- Shared interval and time utilities keep the scheduling logic deterministic and easier to reason about.
+- Business logic stays out of Express controllers so the scheduling engine can be tested directly.
+- API orchestration is kept out of `App.tsx` through a dedicated `useAvailabilityPlanner` hook.
+- Shared backend utilities centralize planning-date validation and person-schedule normalization to avoid duplication across features.
+- The visualization layer uses a view-model adapter to keep rendering concerns separate from transport and backend types.
 
-### Testing
+## Testing
 
-- Backend tests cover scheduling logic, date-scoped filtering, event normalization, warning generation, and controller/error behavior.
-- Frontend tests cover form validation, date selection, results states, stale-result behavior, visualization behavior, and request lifecycle handling.
-- Visualization utility tests cover time parsing, domain normalization, interval modeling, density generation, and accessible-label helpers.
-- Testing is done with `Vitest`, and frontend UI tests use Testing Library.
+The project includes automated verification on both sides of the stack.
+
+Backend coverage includes:
+
+- scheduling logic
+- date-scoped filtering
+- event normalization
+- warning generation
+- controller and error behavior
+
+Frontend coverage includes:
+
+- form validation
+- date selection behavior
+- results states
+- stale-result handling
+- visualization rendering behavior
+- request lifecycle handling
+
+Visualization utility coverage includes:
+
+- time parsing
+- domain normalization
+- interval modeling
+- density generation
+- accessibility-oriented helper behavior
+
+Testing is implemented with `Vitest`, and frontend UI tests use Testing Library.
+
+## Covered Scenarios
+
+- finding shared meeting slots across multiple selected participants
+- filtering participants and event data by a selected planning date
+- returning no slots when the requested duration does not fit
+- ignoring invalid event data without failing the entire request
+- ignoring events that fall outside a participant’s working hours
+- rejecting requests that include unknown participant IDs
+- rejecting malformed or unsupported planning dates
+- surfacing participant-specific warnings when event data is skipped
+- marking previous results as stale after user input changes
+- preserving the distinction between current inputs and last submitted results
+- rendering a mobile-safe visualization for a dense schedule timeline
+
+## Assumptions and Scope Limits
+
+- one selected day at a time
+- in-memory seed data only
+- no recurring events
+- all participants are treated as being in the same timezone
+- no persisted user data
+- explicit submit instead of live recalculation
+- all selected attendees are required attendees
+
+## Future Improvements
+
+- slot ranking and recommendation instead of a flat slot list
+- required vs optional attendees
+- participant-specific timezone support
+- recurring event support
+- persistent database-backed data
+- richer structured warning models instead of plain strings
+- GraphQL as a query layer if the data surface grows significantly
+- SSO or organization-aware access if the product becomes multi-tenant
+- richer scheduling analytics such as recommendation scoring or overlap quality signals
+
+## Repository
+
+- GitHub: `https://github.com/Mohammad-Software-Dev/Availability-Finder`
+- License: `MIT`

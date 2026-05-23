@@ -1,7 +1,4 @@
-import {
-  people,
-  type SeedPerson,
-} from "../../data/seed.js";
+import { people, type SeedPerson } from "../../data/seed.js";
 import { AppError } from "../../shared/errors/AppError.js";
 import { Interval } from "../../shared/types/common.js";
 import {
@@ -65,7 +62,7 @@ function getCommonWorkingWindow(
   }
 
   if (start >= end) {
-    return null; // no overlap
+    return null;
   }
 
   return { start, end };
@@ -160,8 +157,7 @@ function toAvailabilityWarning(
 export function getAvailability(
   input: AvailabilityRequestInput,
 ): AvailabilityResponse {
-  const { date, durationMinutes, personIds } = input;
-  const { stepMinutes } = input;
+  const { date, durationMinutes, personIds, stepMinutes } = input;
   assertAvailableDate(date);
   const selectedPeople = resolveSelectedPeople(personIds);
   const { normalizedPeople, warnings } = normalizePeopleWithWarnings(

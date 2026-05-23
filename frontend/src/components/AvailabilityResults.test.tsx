@@ -26,6 +26,7 @@ describe("AvailabilityResults", () => {
         selectedDate="2026-05-18"
         submittedDate={null}
         onClear={() => {}}
+        onViewAnalysis={() => {}}
       />,
     );
 
@@ -47,6 +48,7 @@ describe("AvailabilityResults", () => {
         selectedDate="2026-05-18"
         submittedDate={null}
         onClear={() => {}}
+        onViewAnalysis={() => {}}
       />,
     );
 
@@ -67,6 +69,7 @@ describe("AvailabilityResults", () => {
         selectedDate="2026-05-18"
         submittedDate={null}
         onClear={() => {}}
+        onViewAnalysis={() => {}}
       />,
     );
 
@@ -83,6 +86,7 @@ describe("AvailabilityResults", () => {
         selectedDate="2026-05-18"
         submittedDate="2026-05-18"
         onClear={() => {}}
+        onViewAnalysis={() => {}}
       />,
     );
 
@@ -104,6 +108,7 @@ describe("AvailabilityResults", () => {
         selectedDate="2026-05-18"
         submittedDate="2026-05-18"
         onClear={() => {}}
+        onViewAnalysis={() => {}}
       />,
     );
 
@@ -125,6 +130,7 @@ describe("AvailabilityResults", () => {
         selectedDate="2026-05-19"
         submittedDate="2026-05-18"
         onClear={() => {}}
+        onViewAnalysis={() => {}}
       />,
     );
 
@@ -149,11 +155,48 @@ describe("AvailabilityResults", () => {
         selectedDate="2026-05-18"
         submittedDate="2026-05-18"
         onClear={onClear}
+        onViewAnalysis={vi.fn()}
       />,
     );
 
     await user.click(screen.getByRole("button", { name: "Clear results" }));
 
     expect(onClear).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an analysis CTA only when results are available", () => {
+    const { rerender } = render(
+      <AvailabilityResults
+        data={null}
+        status="idle"
+        error={null}
+        isStale={false}
+        selectedDate="2026-05-18"
+        submittedDate={null}
+        onClear={() => {}}
+        onViewAnalysis={() => {}}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "View Scheduling Analysis" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <AvailabilityResults
+        data={successData}
+        status="success"
+        error={null}
+        isStale={false}
+        selectedDate="2026-05-18"
+        submittedDate="2026-05-18"
+        onClear={() => {}}
+        onViewAnalysis={() => {}}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "View Scheduling Analysis" }),
+    ).toBeInTheDocument();
   });
 });

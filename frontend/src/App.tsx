@@ -3,6 +3,8 @@ import { AvailabilityResults } from "./components/AvailabilityResults";
 import { ScheduleVisualization } from "./features/schedule-visualization/ScheduleVisualization";
 import { useAvailabilityPlanner } from "./hooks/useAvailabilityPlanner";
 import { formatPlanningDate } from "./lib/date";
+import { scrollIntoViewRespectingMotion } from "./lib/scroll";
+import { useRef } from "react";
 
 function App() {
   const {
@@ -12,7 +14,6 @@ function App() {
     peopleStatus,
     peopleError,
     selectedIds,
-    selectedPeople,
     visualizationPeople,
     availability,
     availabilityStatus,
@@ -20,21 +21,24 @@ function App() {
     lastSubmittedRequest,
     availabilityIsStale,
     hasParticipants,
-    resultsWorkspaceRef,
     setSelectedDate,
     setSelectedIds,
     handleDirtyChange,
     handleSubmit,
     handleClearResults,
   } = useAvailabilityPlanner();
+  const analysisSectionRef = useRef<HTMLDivElement | null>(null);
+
+  function handleViewAnalysis() {
+    scrollIntoViewRespectingMotion(analysisSectionRef.current, {
+      block: "start",
+    });
+  }
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-6">
       <h1 className="text-3xl leading-tight font-bold sm:text-4xl">
-        Availability Finder{" "}
-        <span className="mt-1 block text-base font-medium text-muted-foreground sm:mt-0 sm:inline sm:text-lg">
-          (Date-aware planner)
-        </span>
+        Availability Finder
       </h1>
 
       {peopleStatus === "loading" && !hasParticipants && (
@@ -51,37 +55,31 @@ function App() {
         <p>No planning dates available</p>
       )}
 
-      {peopleStatus === "success" && availableDates.length > 0 && people.length === 0 && (
-        <p>No participants available for {formatPlanningDate(selectedDate)}</p>
-      )}
+      {peopleStatus === "success" &&
+        availableDates.length > 0 &&
+        people.length === 0 && (
+          <p>
+            No participants available for {formatPlanningDate(selectedDate)}
+          </p>
+        )}
 
       {hasParticipants && (
         <div className="space-y-6">
-          <AvailabilityForm
-            availableDates={availableDates}
-            people={people}
-            selectedDate={selectedDate}
-            status={availabilityStatus}
-            selectedIds={selectedIds}
-            onSelectedDateChange={setSelectedDate}
-            onSelectedIdsChange={setSelectedIds}
-            lastSubmittedRequest={lastSubmittedRequest}
-            onDirtyChange={handleDirtyChange}
-            onSubmit={handleSubmit}
-          />
-
-          <div
-            ref={resultsWorkspaceRef}
-            className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.88fr)] xl:items-start"
-          >
-            <ScheduleVisualization
-              people={visualizationPeople}
-              selectedCount={selectedPeople.length}
-              availability={availability}
-              isStale={availabilityIsStale}
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.82fr)] xl:items-start">
+            <AvailabilityForm
+              availableDates={availableDates}
+              people={people}
+              selectedDate={selectedDate}
+              status={availabilityStatus}
+              selectedIds={selectedIds}
+              onSelectedDateChange={setSelectedDate}
+              onSelectedIdsChange={setSelectedIds}
+              lastSubmittedRequest={lastSubmittedRequest}
+              onDirtyChange={handleDirtyChange}
+              onSubmit={handleSubmit}
             />
 
-            <div className="xl:sticky xl:top-6">
+            <div>
               <AvailabilityResults
                 data={availability}
                 status={availabilityStatus}
@@ -90,15 +88,27 @@ function App() {
                 selectedDate={selectedDate}
                 submittedDate={lastSubmittedRequest?.date ?? null}
                 onClear={handleClearResults}
+                onViewAnalysis={handleViewAnalysis}
               />
             </div>
           </div>
+
+          {availability && (
+            <div ref={analysisSectionRef}>
+              <ScheduleVisualization
+                people={visualizationPeople}
+                availability={availability}
+                isStale={availabilityIsStale}
+              />
+            </div>
+          )}
         </div>
       )}
 
       {hasParticipants && peopleStatus === "loading" && (
         <p className="text-sm text-muted-foreground">
-          Updating participants and events for {formatPlanningDate(selectedDate)}.
+          Updating participants and events for
+          {formatPlanningDate(selectedDate)}.
         </p>
       )}
     </div>

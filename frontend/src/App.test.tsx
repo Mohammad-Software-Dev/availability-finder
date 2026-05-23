@@ -80,7 +80,9 @@ describe("App request lifecycle", () => {
       screen.getByText("Select participants and a planning date to view matching slots."),
     ).toBeInTheDocument();
     expect(screen.queryByText("13:00 → 14:00")).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Scheduling Analysis" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Scheduling Analysis" }),
+    ).not.toBeInTheDocument();
   });
 
   it("only applies the latest successful submit", async () => {

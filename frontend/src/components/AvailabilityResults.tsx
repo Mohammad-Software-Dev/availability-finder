@@ -1,4 +1,5 @@
 import { type ReactNode, useId } from "react";
+import { ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +18,7 @@ type Props = {
   selectedDate: string;
   submittedDate: string | null;
   onClear: () => void;
+  onViewAnalysis: () => void;
 };
 
 export function AvailabilityResults({
@@ -27,10 +29,12 @@ export function AvailabilityResults({
   selectedDate,
   submittedDate,
   onClear,
+  onViewAnalysis,
 }: Props) {
   let content: ReactNode = null;
   const titleId = useId();
-  const canClear = status !== "idle" || data !== null || error !== null || isStale;
+  const canClear =
+    status !== "idle" || data !== null || error !== null || isStale;
   const displayedDate = isStale && submittedDate ? submittedDate : selectedDate;
   const formattedDisplayedDate = displayedDate
     ? formatPlanningDate(displayedDate)
@@ -105,7 +109,9 @@ export function AvailabilityResults({
           {data.slots.length === 0 ? (
             <div className="text-muted-foreground border-muted-foreground bg-muted-background rounded-md border px-3 py-2 text-sm">
               <p>No matching slots found for {formattedDisplayedDate}.</p>
-              <p className="mt-1">Try a shorter duration or fewer participants.</p>
+              <p className="mt-1">
+                Try a shorter duration or fewer participants.
+              </p>
             </div>
           ) : (
             <div className="grid gap-2">
@@ -137,6 +143,19 @@ export function AvailabilityResults({
             </ul>
           </div>
         )}
+
+        <div className="pt-1">
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            className="w-full justify-between sm:w-auto"
+            onClick={onViewAnalysis}
+          >
+            View Scheduling Analysis
+            <ArrowDown />
+          </Button>
+        </div>
       </CardContent>
     );
   }
@@ -154,9 +173,8 @@ export function AvailabilityResults({
                 Available Time Slots
               </h2>
               <CardDescription className="text-sm">
-                Review the quick answer for the current selection, including the
-                active planning date, shared working window, matching slots, and
-                any data-quality warnings.
+                Review the date, shared window, slots, and warnings for this
+                selection.
               </CardDescription>
             </div>
             <Button
